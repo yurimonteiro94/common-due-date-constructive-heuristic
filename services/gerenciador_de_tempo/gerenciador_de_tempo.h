@@ -1,0 +1,11 @@
+#ifndef GERENCIADOR_DE_TEMPO_H
+#define GERENCIADOR_DE_TEMPO_H
+
+#include "../constantes/constantes.h"
+
+TempoComputacionalEmSegundos gerenciadorDeTempoObterTempoAtualEmSegundos(void);
+TempoComputacionalEmSegundos gerenciadorDeTempoCalcularDuracaoEmSegundos(TempoComputacionalEmSegundos tempoInicialEmSegundos,TempoComputacionalEmSegundos tempoFinalEmSegundos);
+TempoComputacionalEmMilissegundos gerenciadorDeTempoConverterSegundosParaMilissegundos(TempoComputacionalEmSegundos tempoEmSegundos);
+Boolean gerenciadorDeTempoValorEhValido(TempoComputacionalEmSegundos tempoEmSegundos);
+
+#endif
