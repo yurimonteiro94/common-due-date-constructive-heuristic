@@ -11,6 +11,7 @@
 #include "../../services/gerenciador_de_tempo/gerenciador_de_tempo.h"
 
 #include <stddef.h>
+#include <stdio.h>
 
 static void controllerExperimentoInicializarAcumuladores(double somasDosCustos[QUANTIDADE_DE_ARQUIVOS_DE_INSTANCIA][QUANTIDADE_DE_VALORES_DE_H],double somasDosTemposEmSegundos[QUANTIDADE_DE_ARQUIVOS_DE_INSTANCIA][QUANTIDADE_DE_VALORES_DE_H],InteiroPositivoDe16Bits quantidadesDeExecucoes[QUANTIDADE_DE_ARQUIVOS_DE_INSTANCIA][QUANTIDADE_DE_VALORES_DE_H],QuantidadeDeTarefas quantidadesDeTarefasPorArquivo[QUANTIDADE_DE_ARQUIVOS_DE_INSTANCIA]) {
     InteiroPositivoDe8Bits indiceDoArquivo;
@@ -130,6 +131,19 @@ static Boolean controllerExperimentoExecutarUmaCombinacao(const Experimento *exp
 
         return FALSO;
     }
+
+    printf(
+        "Execucao %03u/%03u | arquivo=%s | instancia=%u | n=%u | h=%.1f | custo=%llu | tempo_ms=%.6f\n",
+        (unsigned int) identificadorDaExecucao,
+        (unsigned int) QUANTIDADE_TOTAL_DE_EXECUCOES,
+        (*instancia).nomeDoArquivoDeOrigem,
+        (unsigned int) (*instancia).identificadorDaInstancia,
+        (unsigned int) (*instancia).quantidadeDeTarefas,
+        ((double) fatorH) / ((double) FATOR_DE_ESCALA_H),
+        (unsigned long long) (*resultadoDeExecucao).custo,
+        (*resultadoDeExecucao).tempoComputacionalEmMilissegundos
+    );
+    fflush(stdout);
 
     liberarSolucao(&solucao);
 
