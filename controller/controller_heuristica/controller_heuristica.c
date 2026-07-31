@@ -1,25 +1,33 @@
 #include "controller_heuristica.h"
 
-#include "../../services/gerenciador_de_custos/gerenciador_de_custos.h"
-
 #include <stdlib.h>
 
-#define QUANTIDADE_DE_REGRAS_DE_SELECAO 8
-#define QUANTIDADE_DE_FATORES_DE_ALVO 7
-#define QUANTIDADE_DE_ESTRATEGIAS_DIRETAS 6
-#define QUANTIDADE_TOTAL_DE_ESTRATEGIAS ((QUANTIDADE_DE_REGRAS_DE_SELECAO * QUANTIDADE_DE_FATORES_DE_ALVO) + QUANTIDADE_DE_ESTRATEGIAS_DIRETAS)
+#define LIMITE_AVALIACAO_COMPLETA 120
+#define QUANTIDADE_DE_AMOSTRAS_GLOBAIS 60
+#define RAIO_DA_JANELA_TEMPORAL 20
 
-typedef struct TarefaParaArbitragem {
+typedef struct TarefaParaInsercao {
     IdentificadorDeTarefa identificador;
     TempoDeProcessamento tempoProcessamento;
     Penalidade penalidadeAdiantamento;
     Penalidade penalidadeAtraso;
-    double chaveSelecao;
-    double chaveOrdenacao;
-} TarefaParaArbitragem;
+    double chavePrioridade;
+} TarefaParaInsercao;
 
-static Boolean controllerHeuristicaParametrosSaoValidos(const Instancia *instancia,Solucao *solucao) {
+static Boolean controllerHeuristicaParametrosSaoValidos(const Instancia *instancia,const Heuristica *heuristica,FatorH fatorH,Solucao *solucao) {
     if(instancia == NULL) {
+        return FALSO;
+    }
+
+    if(heuristica == NULL) {
+        return FALSO;
+    }
+
+    if(heuristicaEhValida(heuristica) == FALSO) {
+        return FALSO;
+    }
+
+    if(fatorH != FATOR_H_02 && fatorH != FATOR_H_04 && fatorH != FATOR_H_06 && fatorH != FATOR_H_08) {
         return FALSO;
     }
 
@@ -38,106 +46,42 @@ static Boolean controllerHeuristicaParametrosSaoValidos(const Instancia *instanc
     return VERDADEIRO;
 }
 
-static double controllerHeuristicaDividir(double numerador,double denominador) {
-    if(denominador == 0.0) {
-        return numerador;
-    }
-
-    return numerador / denominador;
-}
-
-static double controllerHeuristicaCalcularChaveDeSelecao(const TarefaParaArbitragem *tarefa,InteiroPositivoDe16Bits regra) {
-    double p;
-    double alpha;
-    double beta;
+static double controllerHeuristicaCalcularChavePrioridade(const Tarefa *tarefa) {
+    double tempoProcessamento;
+    double penalidadeAdiantamento;
+    double penalidadeAtraso;
 
     if(tarefa == NULL) {
         return 0.0;
     }
 
-    p = (double) (*tarefa).tempoProcessamento;
-    alpha = (double) (*tarefa).penalidadeAdiantamento;
-    beta = (double) (*tarefa).penalidadeAtraso;
+    tempoProcessamento = (double) (*tarefa).tempoProcessamento;
+    penalidadeAdiantamento = (double) (*tarefa).penalidadeAdiantamento;
+    penalidadeAtraso = (double) (*tarefa).penalidadeAtraso;
 
-    if(regra == 0) {
-        return controllerHeuristicaDividir(beta,p);
-    }
-
-    if(regra == 1) {
-        return controllerHeuristicaDividir(beta - alpha,p);
-    }
-
-    if(regra == 2) {
-        return beta;
-    }
-
-    if(regra == 3) {
-        return controllerHeuristicaDividir(beta,alpha + 1.0);
-    }
-
-    if(regra == 4) {
-        return controllerHeuristicaDividir((2.0 * beta) + alpha,p);
-    }
-
-    if(regra == 5) {
-        return controllerHeuristicaDividir(beta + alpha,p);
-    }
-
-    if(regra == 6) {
-        return -p;
-    }
-
-    return controllerHeuristicaDividir((3.0 * beta) - alpha,p);
+    return tempoProcessamento * (penalidadeAdiantamento + penalidadeAtraso);
 }
 
-static double controllerHeuristicaCalcularChaveDireta(const TarefaParaArbitragem *tarefa,InteiroPositivoDe16Bits estrategiaDireta) {
-    double p;
-    double alpha;
-    double beta;
+static int controllerHeuristicaCompararPrioridadeDecrescente(const void *primeiro,const void *segundo) {
+    const TarefaParaInsercao *tarefaA;
+    const TarefaParaInsercao *tarefaB;
 
-    if(tarefa == NULL) {
-        return 0.0;
-    }
+    tarefaA = (const TarefaParaInsercao *) primeiro;
+    tarefaB = (const TarefaParaInsercao *) segundo;
 
-    p = (double) (*tarefa).tempoProcessamento;
-    alpha = (double) (*tarefa).penalidadeAdiantamento;
-    beta = (double) (*tarefa).penalidadeAtraso;
-
-    if(estrategiaDireta == 0) {
-        return controllerHeuristicaDividir(beta,p);
-    }
-
-    if(estrategiaDireta == 1) {
-        return controllerHeuristicaDividir(alpha,p);
-    }
-
-    if(estrategiaDireta == 2) {
-        return -p;
-    }
-
-    if(estrategiaDireta == 3) {
-        return p;
-    }
-
-    if(estrategiaDireta == 4) {
-        return beta;
-    }
-
-    return alpha;
-}
-
-static int controllerHeuristicaCompararDecrescente(const void *primeiro,const void *segundo) {
-    const TarefaParaArbitragem *tarefaA;
-    const TarefaParaArbitragem *tarefaB;
-
-    tarefaA = (const TarefaParaArbitragem *) primeiro;
-    tarefaB = (const TarefaParaArbitragem *) segundo;
-
-    if((*tarefaA).chaveOrdenacao > (*tarefaB).chaveOrdenacao) {
+    if((*tarefaA).chavePrioridade > (*tarefaB).chavePrioridade) {
         return -1;
     }
 
-    if((*tarefaA).chaveOrdenacao < (*tarefaB).chaveOrdenacao) {
+    if((*tarefaA).chavePrioridade < (*tarefaB).chavePrioridade) {
+        return 1;
+    }
+
+    if((*tarefaA).tempoProcessamento > (*tarefaB).tempoProcessamento) {
+        return -1;
+    }
+
+    if((*tarefaA).tempoProcessamento < (*tarefaB).tempoProcessamento) {
         return 1;
     }
 
@@ -152,70 +96,86 @@ static int controllerHeuristicaCompararDecrescente(const void *primeiro,const vo
     return 0;
 }
 
-static int controllerHeuristicaCompararCrescente(const void *primeiro,const void *segundo) {
-    const TarefaParaArbitragem *tarefaA;
-    const TarefaParaArbitragem *tarefaB;
-
-    tarefaA = (const TarefaParaArbitragem *) primeiro;
-    tarefaB = (const TarefaParaArbitragem *) segundo;
-
-    if((*tarefaA).chaveOrdenacao < (*tarefaB).chaveOrdenacao) {
-        return -1;
-    }
-
-    if((*tarefaA).chaveOrdenacao > (*tarefaB).chaveOrdenacao) {
-        return 1;
-    }
-
-    if((*tarefaA).identificador < (*tarefaB).identificador) {
-        return -1;
-    }
-
-    if((*tarefaA).identificador > (*tarefaB).identificador) {
-        return 1;
-    }
-
-    return 0;
-}
-
-static void controllerHeuristicaCopiarTarefasDaInstancia(const Instancia *instancia,TarefaParaArbitragem *tarefas) {
+static Boolean controllerHeuristicaMontarTarefasPorIdentificador(const Instancia *instancia,const Tarefa **tarefasPorIdentificador) {
     QuantidadeDeTarefas indiceDaTarefa;
+    IdentificadorDeTarefa identificadorDaTarefa;
+
+    if(instancia == NULL) {
+        return FALSO;
+    }
+
+    if(tarefasPorIdentificador == NULL) {
+        return FALSO;
+    }
+
+    for(indiceDaTarefa = 0;indiceDaTarefa <= (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
+        tarefasPorIdentificador[indiceDaTarefa] = NULL;
+    }
 
     for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
-        tarefas[indiceDaTarefa].identificador = (*instancia).tarefas[indiceDaTarefa].identificador;
-        tarefas[indiceDaTarefa].tempoProcessamento = (*instancia).tarefas[indiceDaTarefa].tempoProcessamento;
-        tarefas[indiceDaTarefa].penalidadeAdiantamento = (*instancia).tarefas[indiceDaTarefa].penalidadeAdiantamento;
-        tarefas[indiceDaTarefa].penalidadeAtraso = (*instancia).tarefas[indiceDaTarefa].penalidadeAtraso;
-        tarefas[indiceDaTarefa].chaveSelecao = 0.0;
-        tarefas[indiceDaTarefa].chaveOrdenacao = 0.0;
-    }
-}
+        identificadorDaTarefa = (*instancia).tarefas[indiceDaTarefa].identificador;
 
-static InteiroPositivoDe32Bits controllerHeuristicaCalcularAlvoTemporal(DataDeEntregaComum dataDeEntregaComum,SomaDosTemposDeProcessamento somaDosTemposDeProcessamento,InteiroPositivoDe16Bits indiceDoFator) {
-    static const InteiroPositivoDe16Bits fatoresPercentuais[QUANTIDADE_DE_FATORES_DE_ALVO] = {70,80,90,100,110,120,130};
-    InteiroPositivoDe32Bits alvoTemporal;
+        if(identificadorDaTarefa == 0) {
+            return FALSO;
+        }
 
-    alvoTemporal = ((InteiroPositivoDe32Bits) dataDeEntregaComum * (InteiroPositivoDe32Bits) fatoresPercentuais[indiceDoFator]) / 100;
+        if(identificadorDaTarefa > (*instancia).quantidadeDeTarefas) {
+            return FALSO;
+        }
 
-    if(alvoTemporal > somaDosTemposDeProcessamento) {
-        alvoTemporal = somaDosTemposDeProcessamento;
+        tarefasPorIdentificador[identificadorDaTarefa] = &((*instancia).tarefas[indiceDaTarefa]);
     }
 
-    return alvoTemporal;
+    for(indiceDaTarefa = 1;indiceDaTarefa <= (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
+        if(tarefasPorIdentificador[indiceDaTarefa] == NULL) {
+            return FALSO;
+        }
+    }
+
+    return VERDADEIRO;
 }
 
-static Boolean controllerHeuristicaConstruirSequenciaParticionada(const Instancia *instancia,DataDeEntregaComum dataDeEntregaComum,InteiroPositivoDe16Bits regraDeSelecao,InteiroPositivoDe16Bits indiceDoFator,IdentificadorDeTarefa *sequencia) {
-    TarefaParaArbitragem *tarefasOrdenadas;
-    TarefaParaArbitragem *tarefasAntes;
-    TarefaParaArbitragem *tarefasDepois;
+static Boolean controllerHeuristicaCriarOrdemDePrioridade(const Instancia *instancia,TarefaParaInsercao *tarefasOrdenadas) {
     QuantidadeDeTarefas indiceDaTarefa;
-    QuantidadeDeTarefas quantidadeAntes;
-    QuantidadeDeTarefas quantidadeDepois;
+    const Tarefa *tarefa;
+
+    if(instancia == NULL) {
+        return FALSO;
+    }
+
+    if(tarefasOrdenadas == NULL) {
+        return FALSO;
+    }
+
+    for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
+        tarefa = &((*instancia).tarefas[indiceDaTarefa]);
+
+        tarefasOrdenadas[indiceDaTarefa].identificador = (*tarefa).identificador;
+        tarefasOrdenadas[indiceDaTarefa].tempoProcessamento = (*tarefa).tempoProcessamento;
+        tarefasOrdenadas[indiceDaTarefa].penalidadeAdiantamento = (*tarefa).penalidadeAdiantamento;
+        tarefasOrdenadas[indiceDaTarefa].penalidadeAtraso = (*tarefa).penalidadeAtraso;
+        tarefasOrdenadas[indiceDaTarefa].chavePrioridade = controllerHeuristicaCalcularChavePrioridade(tarefa);
+    }
+
+    qsort(tarefasOrdenadas,(*instancia).quantidadeDeTarefas,sizeof(TarefaParaInsercao),controllerHeuristicaCompararPrioridadeDecrescente);
+
+    return VERDADEIRO;
+}
+
+static Boolean controllerHeuristicaCalcularMelhorCustoDaSequencia(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequencia,QuantidadeDeTarefas quantidadeDeTarefas,DataDeEntregaComum dataDeEntregaComum,InteiroPositivoDe32Bits *temposDeConclusaoCompactos,Custo *custo) {
     QuantidadeDeTarefas indiceDaSequencia;
-    InteiroPositivoDe32Bits somaAntes;
-    InteiroPositivoDe32Bits alvoTemporal;
+    QuantidadeDeTarefas indiceReverso;
+    IdentificadorDeTarefa identificadorDaTarefa;
+    const Tarefa *tarefa;
+    InteiroPositivoDe32Bits tempoAcumulado;
+    InteiroPositivoDe32Bits proximoInstanteInicial;
+    InteiroPositivoDe32Bits instanteInicialAtual;
+    long long custoAtual;
+    long long melhorCusto;
+    long long inclinacao;
+    long long delta;
 
-    if(instancia == NULL) {
+    if(tarefasPorIdentificador == NULL) {
         return FALSO;
     }
 
@@ -223,127 +183,7 @@ static Boolean controllerHeuristicaConstruirSequenciaParticionada(const Instanci
         return FALSO;
     }
 
-    tarefasOrdenadas = (TarefaParaArbitragem *) malloc(sizeof(TarefaParaArbitragem) * (*instancia).quantidadeDeTarefas);
-    tarefasAntes = (TarefaParaArbitragem *) malloc(sizeof(TarefaParaArbitragem) * (*instancia).quantidadeDeTarefas);
-    tarefasDepois = (TarefaParaArbitragem *) malloc(sizeof(TarefaParaArbitragem) * (*instancia).quantidadeDeTarefas);
-
-    if(tarefasOrdenadas == NULL) {
-        free(tarefasAntes);
-        free(tarefasDepois);
-        return FALSO;
-    }
-
-    if(tarefasAntes == NULL) {
-        free(tarefasOrdenadas);
-        free(tarefasDepois);
-        return FALSO;
-    }
-
-    if(tarefasDepois == NULL) {
-        free(tarefasOrdenadas);
-        free(tarefasAntes);
-        return FALSO;
-    }
-
-    controllerHeuristicaCopiarTarefasDaInstancia(instancia,tarefasOrdenadas);
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
-        tarefasOrdenadas[indiceDaTarefa].chaveSelecao = controllerHeuristicaCalcularChaveDeSelecao(&(tarefasOrdenadas[indiceDaTarefa]),regraDeSelecao);
-        tarefasOrdenadas[indiceDaTarefa].chaveOrdenacao = tarefasOrdenadas[indiceDaTarefa].chaveSelecao;
-    }
-
-    qsort(tarefasOrdenadas,(*instancia).quantidadeDeTarefas,sizeof(TarefaParaArbitragem),controllerHeuristicaCompararDecrescente);
-
-    quantidadeAntes = 0;
-    quantidadeDepois = 0;
-    somaAntes = 0;
-    alvoTemporal = controllerHeuristicaCalcularAlvoTemporal(dataDeEntregaComum,(*instancia).somaDosTemposDeProcessamento,indiceDoFator);
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
-        if(somaAntes + tarefasOrdenadas[indiceDaTarefa].tempoProcessamento <= alvoTemporal) {
-            tarefasAntes[quantidadeAntes] = tarefasOrdenadas[indiceDaTarefa];
-            somaAntes += tarefasOrdenadas[indiceDaTarefa].tempoProcessamento;
-            quantidadeAntes++;
-        }
-        else {
-            tarefasDepois[quantidadeDepois] = tarefasOrdenadas[indiceDaTarefa];
-            quantidadeDepois++;
-        }
-    }
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < quantidadeAntes;indiceDaTarefa++) {
-        tarefasAntes[indiceDaTarefa].chaveOrdenacao = controllerHeuristicaDividir((double) tarefasAntes[indiceDaTarefa].penalidadeAdiantamento,(double) tarefasAntes[indiceDaTarefa].tempoProcessamento);
-    }
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < quantidadeDepois;indiceDaTarefa++) {
-        tarefasDepois[indiceDaTarefa].chaveOrdenacao = controllerHeuristicaDividir((double) tarefasDepois[indiceDaTarefa].penalidadeAtraso,(double) tarefasDepois[indiceDaTarefa].tempoProcessamento);
-    }
-
-    qsort(tarefasAntes,quantidadeAntes,sizeof(TarefaParaArbitragem),controllerHeuristicaCompararCrescente);
-    qsort(tarefasDepois,quantidadeDepois,sizeof(TarefaParaArbitragem),controllerHeuristicaCompararDecrescente);
-
-    indiceDaSequencia = 0;
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < quantidadeAntes;indiceDaTarefa++) {
-        sequencia[indiceDaSequencia] = tarefasAntes[indiceDaTarefa].identificador;
-        indiceDaSequencia++;
-    }
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < quantidadeDepois;indiceDaTarefa++) {
-        sequencia[indiceDaSequencia] = tarefasDepois[indiceDaTarefa].identificador;
-        indiceDaSequencia++;
-    }
-
-    free(tarefasOrdenadas);
-    free(tarefasAntes);
-    free(tarefasDepois);
-
-    return VERDADEIRO;
-}
-
-static Boolean controllerHeuristicaConstruirSequenciaDireta(const Instancia *instancia,InteiroPositivoDe16Bits estrategiaDireta,IdentificadorDeTarefa *sequencia) {
-    TarefaParaArbitragem *tarefasOrdenadas;
-    QuantidadeDeTarefas indiceDaTarefa;
-
-    if(instancia == NULL) {
-        return FALSO;
-    }
-
-    if(sequencia == NULL) {
-        return FALSO;
-    }
-
-    tarefasOrdenadas = (TarefaParaArbitragem *) malloc(sizeof(TarefaParaArbitragem) * (*instancia).quantidadeDeTarefas);
-
-    if(tarefasOrdenadas == NULL) {
-        return FALSO;
-    }
-
-    controllerHeuristicaCopiarTarefasDaInstancia(instancia,tarefasOrdenadas);
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
-        tarefasOrdenadas[indiceDaTarefa].chaveOrdenacao = controllerHeuristicaCalcularChaveDireta(&(tarefasOrdenadas[indiceDaTarefa]),estrategiaDireta);
-    }
-
-    qsort(tarefasOrdenadas,(*instancia).quantidadeDeTarefas,sizeof(TarefaParaArbitragem),controllerHeuristicaCompararDecrescente);
-
-    for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
-        sequencia[indiceDaTarefa] = tarefasOrdenadas[indiceDaTarefa].identificador;
-    }
-
-    free(tarefasOrdenadas);
-
-    return VERDADEIRO;
-}
-
-static Boolean controllerHeuristicaAvaliarSequencia(const Instancia *instancia,DataDeEntregaComum dataDeEntregaComum,IdentificadorDeTarefa *sequencia,Custo *custo) {
-    Solucao solucaoCandidata;
-
-    if(instancia == NULL) {
-        return FALSO;
-    }
-
-    if(sequencia == NULL) {
+    if(temposDeConclusaoCompactos == NULL) {
         return FALSO;
     }
 
@@ -351,127 +191,477 @@ static Boolean controllerHeuristicaAvaliarSequencia(const Instancia *instancia,D
         return FALSO;
     }
 
-    solucaoCandidata.quantidadeDeTarefas = (*instancia).quantidadeDeTarefas;
-    solucaoCandidata.quantidadeDeTarefasAlocadas = (*instancia).quantidadeDeTarefas;
-    solucaoCandidata.sequenciaDeTarefas = sequencia;
+    if(quantidadeDeTarefas == 0) {
+        return FALSO;
+    }
 
-    return gerenciadorDeCustosCalcularCustoDaSolucao(instancia,&solucaoCandidata,dataDeEntregaComum,custo);
+    tempoAcumulado = 0;
+    custoAtual = 0;
+    inclinacao = 0;
+
+    for(indiceDaSequencia = 0;indiceDaSequencia < quantidadeDeTarefas;indiceDaSequencia++) {
+        identificadorDaTarefa = sequencia[indiceDaSequencia];
+
+        if(identificadorDaTarefa == 0) {
+            return FALSO;
+        }
+
+        tarefa = tarefasPorIdentificador[identificadorDaTarefa];
+
+        if(tarefa == NULL) {
+            return FALSO;
+        }
+
+        tempoAcumulado += (*tarefa).tempoProcessamento;
+        temposDeConclusaoCompactos[indiceDaSequencia] = tempoAcumulado;
+
+        if(tempoAcumulado < dataDeEntregaComum) {
+            custoAtual += ((long long) (*tarefa).penalidadeAdiantamento) * ((long long) (dataDeEntregaComum - tempoAcumulado));
+            inclinacao -= (long long) (*tarefa).penalidadeAdiantamento;
+        }
+        else if(tempoAcumulado > dataDeEntregaComum) {
+            custoAtual += ((long long) (*tarefa).penalidadeAtraso) * ((long long) (tempoAcumulado - dataDeEntregaComum));
+            inclinacao += (long long) (*tarefa).penalidadeAtraso;
+        }
+        else {
+            inclinacao += (long long) (*tarefa).penalidadeAtraso;
+        }
+    }
+
+    melhorCusto = custoAtual;
+    instanteInicialAtual = 0;
+
+    indiceReverso = quantidadeDeTarefas;
+
+    while(indiceReverso > 0) {
+        indiceReverso--;
+
+        if(temposDeConclusaoCompactos[indiceReverso] < dataDeEntregaComum) {
+            proximoInstanteInicial = dataDeEntregaComum - temposDeConclusaoCompactos[indiceReverso];
+
+            if(proximoInstanteInicial > instanteInicialAtual) {
+                delta = (long long) (proximoInstanteInicial - instanteInicialAtual);
+                custoAtual += inclinacao * delta;
+                instanteInicialAtual = proximoInstanteInicial;
+
+                if(custoAtual < melhorCusto) {
+                    melhorCusto = custoAtual;
+                }
+            }
+
+            identificadorDaTarefa = sequencia[indiceReverso];
+            tarefa = tarefasPorIdentificador[identificadorDaTarefa];
+
+            if(tarefa == NULL) {
+                return FALSO;
+            }
+
+            inclinacao += ((long long) (*tarefa).penalidadeAdiantamento) + ((long long) (*tarefa).penalidadeAtraso);
+        }
+    }
+
+    if(melhorCusto < 0) {
+        melhorCusto = 0;
+    }
+
+    (*custo) = (Custo) melhorCusto;
+
+    return VERDADEIRO;
 }
 
-static Boolean controllerHeuristicaCopiarSequencia(IdentificadorDeTarefa *destino,const IdentificadorDeTarefa *origem,QuantidadeDeTarefas quantidadeDeTarefas) {
-    QuantidadeDeTarefas indiceDaTarefa;
+static Boolean controllerHeuristicaMontarSequenciaTemporaria(const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,IdentificadorDeTarefa identificadorDaTarefa,QuantidadeDeTarefas posicaoDeInsercao,IdentificadorDeTarefa *sequenciaTemporaria) {
+    QuantidadeDeTarefas indiceDaSequencia;
 
-    if(destino == NULL) {
+    if(sequenciaAtual == NULL && quantidadeAtual > 0) {
         return FALSO;
     }
 
-    if(origem == NULL) {
+    if(sequenciaTemporaria == NULL) {
         return FALSO;
     }
 
-    for(indiceDaTarefa = 0;indiceDaTarefa < quantidadeDeTarefas;indiceDaTarefa++) {
-        destino[indiceDaTarefa] = origem[indiceDaTarefa];
+    if(posicaoDeInsercao > quantidadeAtual) {
+        return FALSO;
     }
+
+    for(indiceDaSequencia = 0;indiceDaSequencia < posicaoDeInsercao;indiceDaSequencia++) {
+        sequenciaTemporaria[indiceDaSequencia] = sequenciaAtual[indiceDaSequencia];
+    }
+
+    sequenciaTemporaria[posicaoDeInsercao] = identificadorDaTarefa;
+
+    for(indiceDaSequencia = posicaoDeInsercao;indiceDaSequencia < quantidadeAtual;indiceDaSequencia++) {
+        sequenciaTemporaria[indiceDaSequencia + 1] = sequenciaAtual[indiceDaSequencia];
+    }
+
+    return VERDADEIRO;
+}
+
+static Boolean controllerHeuristicaInserirTarefaNaSequencia(IdentificadorDeTarefa *sequencia,QuantidadeDeTarefas quantidadeAtual,IdentificadorDeTarefa identificadorDaTarefa,QuantidadeDeTarefas posicaoDeInsercao) {
+    QuantidadeDeTarefas posicaoAtual;
+
+    if(sequencia == NULL) {
+        return FALSO;
+    }
+
+    if(posicaoDeInsercao > quantidadeAtual) {
+        return FALSO;
+    }
+
+    posicaoAtual = quantidadeAtual;
+
+    while(posicaoAtual > posicaoDeInsercao) {
+        sequencia[posicaoAtual] = sequencia[posicaoAtual - 1];
+        posicaoAtual--;
+    }
+
+    sequencia[posicaoDeInsercao] = identificadorDaTarefa;
+
+    return VERDADEIRO;
+}
+
+static void controllerHeuristicaAdicionarPosicaoCandidata(QuantidadeDeTarefas *posicoesCandidatas,QuantidadeDeTarefas *quantidadeDePosicoes,QuantidadeDeTarefas quantidadeAtual,int posicao) {
+    QuantidadeDeTarefas indiceDaPosicao;
+    QuantidadeDeTarefas posicaoAjustada;
+
+    if(posicoesCandidatas == NULL) {
+        return;
+    }
+
+    if(quantidadeDePosicoes == NULL) {
+        return;
+    }
+
+    if(posicao < 0) {
+        posicaoAjustada = 0;
+    }
+    else if(posicao > (int) quantidadeAtual) {
+        posicaoAjustada = quantidadeAtual;
+    }
+    else {
+        posicaoAjustada = (QuantidadeDeTarefas) posicao;
+    }
+
+    for(indiceDaPosicao = 0;indiceDaPosicao < (*quantidadeDePosicoes);indiceDaPosicao++) {
+        if(posicoesCandidatas[indiceDaPosicao] == posicaoAjustada) {
+            return;
+        }
+    }
+
+    posicoesCandidatas[*quantidadeDePosicoes] = posicaoAjustada;
+    (*quantidadeDePosicoes)++;
+}
+
+static QuantidadeDeTarefas controllerHeuristicaEncontrarPosicaoPorAlvoTemporal(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,InteiroPositivoDe32Bits alvoTemporal) {
+    QuantidadeDeTarefas posicao;
+    IdentificadorDeTarefa identificadorDaTarefa;
+    const Tarefa *tarefa;
+    InteiroPositivoDe32Bits tempoAcumulado;
+
+    if(tarefasPorIdentificador == NULL) {
+        return 0;
+    }
+
+    if(sequenciaAtual == NULL && quantidadeAtual > 0) {
+        return 0;
+    }
+
+    if(alvoTemporal == 0) {
+        return 0;
+    }
+
+    tempoAcumulado = 0;
+
+    for(posicao = 0;posicao < quantidadeAtual;posicao++) {
+        identificadorDaTarefa = sequenciaAtual[posicao];
+        tarefa = tarefasPorIdentificador[identificadorDaTarefa];
+
+        if(tarefa == NULL) {
+            return quantidadeAtual;
+        }
+
+        tempoAcumulado += (*tarefa).tempoProcessamento;
+
+        if(tempoAcumulado >= alvoTemporal) {
+            return posicao;
+        }
+    }
+
+    return quantidadeAtual;
+}
+
+static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,const TarefaParaInsercao *tarefaNova,DataDeEntregaComum dataDeEntregaComum,QuantidadeDeTarefas *posicoesCandidatas,QuantidadeDeTarefas *quantidadeDePosicoes) {
+    QuantidadeDeTarefas posicao;
+    QuantidadeDeTarefas passoGlobal;
+    QuantidadeDeTarefas posicaoTemporal;
+    InteiroPositivoDe32Bits alvoAntes;
+    InteiroPositivoDe32Bits alvoNaData;
+    InteiroPositivoDe32Bits alvoDepois;
+    int deslocamento;
+
+    if(tarefasPorIdentificador == NULL) {
+        return FALSO;
+    }
+
+    if(posicoesCandidatas == NULL) {
+        return FALSO;
+    }
+
+    if(quantidadeDePosicoes == NULL) {
+        return FALSO;
+    }
+
+    if(tarefaNova == NULL) {
+        return FALSO;
+    }
+
+    (*quantidadeDePosicoes) = 0;
+
+    if(quantidadeAtual <= LIMITE_AVALIACAO_COMPLETA) {
+        for(posicao = 0;posicao <= quantidadeAtual;posicao++) {
+            controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,(int) posicao);
+        }
+
+        return VERDADEIRO;
+    }
+
+    controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,0);
+    controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,(int) quantidadeAtual);
+    controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,(int) (quantidadeAtual / 2));
+
+    passoGlobal = quantidadeAtual / QUANTIDADE_DE_AMOSTRAS_GLOBAIS;
+
+    if(passoGlobal == 0) {
+        passoGlobal = 1;
+    }
+
+    posicao = 0;
+
+    while(posicao <= quantidadeAtual) {
+        controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,(int) posicao);
+
+        if((QuantidadeDeTarefas) (quantidadeAtual - posicao) < passoGlobal) {
+            break;
+        }
+
+        posicao = (QuantidadeDeTarefas) (posicao + passoGlobal);
+    }
+
+    controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,(int) quantidadeAtual);
+
+    if(dataDeEntregaComum > (*tarefaNova).tempoProcessamento) {
+        alvoAntes = dataDeEntregaComum - (*tarefaNova).tempoProcessamento;
+    }
+    else {
+        alvoAntes = 0;
+    }
+
+    alvoNaData = dataDeEntregaComum;
+    alvoDepois = dataDeEntregaComum + (*tarefaNova).tempoProcessamento;
+
+    posicaoTemporal = controllerHeuristicaEncontrarPosicaoPorAlvoTemporal(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,alvoAntes);
+
+    for(deslocamento = -RAIO_DA_JANELA_TEMPORAL;deslocamento <= RAIO_DA_JANELA_TEMPORAL;deslocamento++) {
+        controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,((int) posicaoTemporal) + deslocamento);
+    }
+
+    posicaoTemporal = controllerHeuristicaEncontrarPosicaoPorAlvoTemporal(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,alvoNaData);
+
+    for(deslocamento = -RAIO_DA_JANELA_TEMPORAL;deslocamento <= RAIO_DA_JANELA_TEMPORAL;deslocamento++) {
+        controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,((int) posicaoTemporal) + deslocamento);
+    }
+
+    posicaoTemporal = controllerHeuristicaEncontrarPosicaoPorAlvoTemporal(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,alvoDepois);
+
+    for(deslocamento = -RAIO_DA_JANELA_TEMPORAL;deslocamento <= RAIO_DA_JANELA_TEMPORAL;deslocamento++) {
+        controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,((int) posicaoTemporal) + deslocamento);
+    }
+
+    return VERDADEIRO;
+}
+
+static Boolean controllerHeuristicaConstruirSequenciaPorInsercao(const Instancia *instancia,const Tarefa **tarefasPorIdentificador,const TarefaParaInsercao *tarefasOrdenadas,DataDeEntregaComum dataDeEntregaComum,IdentificadorDeTarefa *sequenciaConstruida) {
+    IdentificadorDeTarefa *sequenciaTemporaria;
+    QuantidadeDeTarefas *posicoesCandidatas;
+    InteiroPositivoDe32Bits *temposDeConclusaoCompactos;
+    QuantidadeDeTarefas indiceDaOrdem;
+    QuantidadeDeTarefas quantidadeAtual;
+    QuantidadeDeTarefas quantidadeDePosicoes;
+    QuantidadeDeTarefas indiceDaPosicaoCandidata;
+    QuantidadeDeTarefas posicaoDeInsercao;
+    QuantidadeDeTarefas melhorPosicao;
+    IdentificadorDeTarefa identificadorDaTarefa;
+    Custo custoCandidato;
+    Custo melhorCusto;
+    Boolean encontrouMelhorPosicao;
+
+    if(instancia == NULL) {
+        return FALSO;
+    }
+
+    if(tarefasPorIdentificador == NULL) {
+        return FALSO;
+    }
+
+    if(tarefasOrdenadas == NULL) {
+        return FALSO;
+    }
+
+    if(sequenciaConstruida == NULL) {
+        return FALSO;
+    }
+
+    sequenciaTemporaria = (IdentificadorDeTarefa *) malloc(sizeof(IdentificadorDeTarefa) * (*instancia).quantidadeDeTarefas);
+    posicoesCandidatas = (QuantidadeDeTarefas *) malloc(sizeof(QuantidadeDeTarefas) * ((QuantidadeDeTarefas) ((*instancia).quantidadeDeTarefas + 1)));
+    temposDeConclusaoCompactos = (InteiroPositivoDe32Bits *) malloc(sizeof(InteiroPositivoDe32Bits) * (*instancia).quantidadeDeTarefas);
+
+    if(sequenciaTemporaria == NULL) {
+        free(posicoesCandidatas);
+        free(temposDeConclusaoCompactos);
+        return FALSO;
+    }
+
+    if(posicoesCandidatas == NULL) {
+        free(sequenciaTemporaria);
+        free(temposDeConclusaoCompactos);
+        return FALSO;
+    }
+
+    if(temposDeConclusaoCompactos == NULL) {
+        free(sequenciaTemporaria);
+        free(posicoesCandidatas);
+        return FALSO;
+    }
+
+    quantidadeAtual = 0;
+
+    for(indiceDaOrdem = 0;indiceDaOrdem < (*instancia).quantidadeDeTarefas;indiceDaOrdem++) {
+        identificadorDaTarefa = tarefasOrdenadas[indiceDaOrdem].identificador;
+
+        if(controllerHeuristicaMontarPosicoesCandidatas(tarefasPorIdentificador,sequenciaConstruida,quantidadeAtual,&(tarefasOrdenadas[indiceDaOrdem]),dataDeEntregaComum,posicoesCandidatas,&quantidadeDePosicoes) == FALSO) {
+            free(sequenciaTemporaria);
+            free(posicoesCandidatas);
+            free(temposDeConclusaoCompactos);
+            return FALSO;
+        }
+
+        melhorPosicao = 0;
+        melhorCusto = 0;
+        encontrouMelhorPosicao = FALSO;
+
+        for(indiceDaPosicaoCandidata = 0;indiceDaPosicaoCandidata < quantidadeDePosicoes;indiceDaPosicaoCandidata++) {
+            posicaoDeInsercao = posicoesCandidatas[indiceDaPosicaoCandidata];
+
+            if(controllerHeuristicaMontarSequenciaTemporaria(sequenciaConstruida,quantidadeAtual,identificadorDaTarefa,posicaoDeInsercao,sequenciaTemporaria) == FALSO) {
+                free(sequenciaTemporaria);
+                free(posicoesCandidatas);
+                free(temposDeConclusaoCompactos);
+                return FALSO;
+            }
+
+            if(controllerHeuristicaCalcularMelhorCustoDaSequencia(tarefasPorIdentificador,sequenciaTemporaria,(QuantidadeDeTarefas) (quantidadeAtual + 1),dataDeEntregaComum,temposDeConclusaoCompactos,&custoCandidato) == FALSO) {
+                free(sequenciaTemporaria);
+                free(posicoesCandidatas);
+                free(temposDeConclusaoCompactos);
+                return FALSO;
+            }
+
+            if(encontrouMelhorPosicao == FALSO) {
+                melhorCusto = custoCandidato;
+                melhorPosicao = posicaoDeInsercao;
+                encontrouMelhorPosicao = VERDADEIRO;
+            }
+            else if(custoCandidato < melhorCusto) {
+                melhorCusto = custoCandidato;
+                melhorPosicao = posicaoDeInsercao;
+            }
+        }
+
+        if(encontrouMelhorPosicao == FALSO) {
+            free(sequenciaTemporaria);
+            free(posicoesCandidatas);
+            free(temposDeConclusaoCompactos);
+            return FALSO;
+        }
+
+        if(controllerHeuristicaInserirTarefaNaSequencia(sequenciaConstruida,quantidadeAtual,identificadorDaTarefa,melhorPosicao) == FALSO) {
+            free(sequenciaTemporaria);
+            free(posicoesCandidatas);
+            free(temposDeConclusaoCompactos);
+            return FALSO;
+        }
+
+        quantidadeAtual++;
+    }
+
+    free(sequenciaTemporaria);
+    free(posicoesCandidatas);
+    free(temposDeConclusaoCompactos);
 
     return VERDADEIRO;
 }
 
 Boolean controllerHeuristicaConstruirSolucao(const Instancia *instancia,const Heuristica *heuristica,FatorH fatorH,Solucao *solucao) {
-    IdentificadorDeTarefa *sequenciaCandidata;
-    IdentificadorDeTarefa *melhorSequencia;
-    InteiroPositivoDe16Bits indiceDaEstrategia;
-    InteiroPositivoDe16Bits regraDeSelecao;
-    InteiroPositivoDe16Bits indiceDoFator;
-    InteiroPositivoDe16Bits estrategiaDireta;
-    Custo custoCandidato;
-    Custo melhorCusto;
-    Boolean encontrouMelhorSolucao;
+    TarefaParaInsercao *tarefasOrdenadas;
+    const Tarefa **tarefasPorIdentificador;
+    IdentificadorDeTarefa *sequenciaConstruida;
     DataDeEntregaComum dataDeEntregaComum;
-    Boolean construiuSequencia;
 
-    (void) heuristica;
+    if(controllerHeuristicaParametrosSaoValidos(instancia,heuristica,fatorH,solucao) == FALSO) {
+        return FALSO;
+    }
+
     dataDeEntregaComum = ((*instancia).somaDosTemposDeProcessamento * fatorH) / FATOR_DE_ESCALA_H;
 
-    if(controllerHeuristicaParametrosSaoValidos(instancia,solucao) == FALSO) {
+    tarefasOrdenadas = (TarefaParaInsercao *) malloc(sizeof(TarefaParaInsercao) * (*instancia).quantidadeDeTarefas);
+    tarefasPorIdentificador = (const Tarefa **) malloc(sizeof(Tarefa *) * ((QuantidadeDeTarefas) ((*instancia).quantidadeDeTarefas + 1)));
+    sequenciaConstruida = (IdentificadorDeTarefa *) malloc(sizeof(IdentificadorDeTarefa) * (*instancia).quantidadeDeTarefas);
+
+    if(tarefasOrdenadas == NULL) {
+        free(tarefasPorIdentificador);
+        free(sequenciaConstruida);
         return FALSO;
     }
 
-    sequenciaCandidata = (IdentificadorDeTarefa *) malloc(sizeof(IdentificadorDeTarefa) * (*instancia).quantidadeDeTarefas);
-    melhorSequencia = (IdentificadorDeTarefa *) malloc(sizeof(IdentificadorDeTarefa) * (*instancia).quantidadeDeTarefas);
-
-    if(sequenciaCandidata == NULL) {
-        free(melhorSequencia);
+    if(tarefasPorIdentificador == NULL) {
+        free(tarefasOrdenadas);
+        free(sequenciaConstruida);
         return FALSO;
     }
 
-    if(melhorSequencia == NULL) {
-        free(sequenciaCandidata);
+    if(sequenciaConstruida == NULL) {
+        free(tarefasOrdenadas);
+        free(tarefasPorIdentificador);
         return FALSO;
     }
 
-    encontrouMelhorSolucao = FALSO;
-    melhorCusto = 0;
-
-    for(indiceDaEstrategia = 0;indiceDaEstrategia < QUANTIDADE_TOTAL_DE_ESTRATEGIAS;indiceDaEstrategia++) {
-        construiuSequencia = FALSO;
-
-        if(indiceDaEstrategia < QUANTIDADE_DE_REGRAS_DE_SELECAO * QUANTIDADE_DE_FATORES_DE_ALVO) {
-            regraDeSelecao = indiceDaEstrategia % QUANTIDADE_DE_REGRAS_DE_SELECAO;
-            indiceDoFator = indiceDaEstrategia / QUANTIDADE_DE_REGRAS_DE_SELECAO;
-            construiuSequencia = controllerHeuristicaConstruirSequenciaParticionada(instancia,dataDeEntregaComum,regraDeSelecao,indiceDoFator,sequenciaCandidata);
-        }
-        else {
-            estrategiaDireta = indiceDaEstrategia - (QUANTIDADE_DE_REGRAS_DE_SELECAO * QUANTIDADE_DE_FATORES_DE_ALVO);
-            construiuSequencia = controllerHeuristicaConstruirSequenciaDireta(instancia,estrategiaDireta,sequenciaCandidata);
-        }
-
-        if(construiuSequencia == FALSO) {
-            free(sequenciaCandidata);
-            free(melhorSequencia);
-            return FALSO;
-        }
-
-        if(controllerHeuristicaAvaliarSequencia(instancia,dataDeEntregaComum,sequenciaCandidata,&custoCandidato) == FALSO) {
-            free(sequenciaCandidata);
-            free(melhorSequencia);
-            return FALSO;
-        }
-
-        if(encontrouMelhorSolucao == FALSO) {
-            melhorCusto = custoCandidato;
-            encontrouMelhorSolucao = VERDADEIRO;
-
-            if(controllerHeuristicaCopiarSequencia(melhorSequencia,sequenciaCandidata,(*instancia).quantidadeDeTarefas) == FALSO) {
-                free(sequenciaCandidata);
-                free(melhorSequencia);
-                return FALSO;
-            }
-        }
-        else if(custoCandidato < melhorCusto) {
-            melhorCusto = custoCandidato;
-
-            if(controllerHeuristicaCopiarSequencia(melhorSequencia,sequenciaCandidata,(*instancia).quantidadeDeTarefas) == FALSO) {
-                free(sequenciaCandidata);
-                free(melhorSequencia);
-                return FALSO;
-            }
-        }
+    if(controllerHeuristicaMontarTarefasPorIdentificador(instancia,tarefasPorIdentificador) == FALSO) {
+        free(tarefasOrdenadas);
+        free(tarefasPorIdentificador);
+        free(sequenciaConstruida);
+        return FALSO;
     }
 
-    if(encontrouMelhorSolucao == FALSO) {
-        free(sequenciaCandidata);
-        free(melhorSequencia);
+    if(controllerHeuristicaCriarOrdemDePrioridade(instancia,tarefasOrdenadas) == FALSO) {
+        free(tarefasOrdenadas);
+        free(tarefasPorIdentificador);
+        free(sequenciaConstruida);
+        return FALSO;
+    }
+
+    if(controllerHeuristicaConstruirSequenciaPorInsercao(instancia,tarefasPorIdentificador,tarefasOrdenadas,dataDeEntregaComum,sequenciaConstruida) == FALSO) {
+        free(tarefasOrdenadas);
+        free(tarefasPorIdentificador);
+        free(sequenciaConstruida);
         return FALSO;
     }
 
     (*solucao).quantidadeDeTarefas = (*instancia).quantidadeDeTarefas;
     (*solucao).quantidadeDeTarefasAlocadas = (*instancia).quantidadeDeTarefas;
-    (*solucao).sequenciaDeTarefas = melhorSequencia;
+    (*solucao).sequenciaDeTarefas = sequenciaConstruida;
 
-    free(sequenciaCandidata);
+    free(tarefasOrdenadas);
+    free(tarefasPorIdentificador);
 
     return VERDADEIRO;
 }
-
-
-
