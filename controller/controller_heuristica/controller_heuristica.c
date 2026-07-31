@@ -5,6 +5,7 @@
 #define LIMITE_AVALIACAO_COMPLETA 120
 #define QUANTIDADE_DE_AMOSTRAS_GLOBAIS 60
 #define RAIO_DA_JANELA_TEMPORAL 20
+#define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 4
 
 typedef struct TarefaParaInsercao {
     IdentificadorDeTarefa identificador;
@@ -480,20 +481,69 @@ static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **taref
     return VERDADEIRO;
 }
 
-static Boolean controllerHeuristicaConstruirSequenciaPorInsercao(const Instancia *instancia,const Tarefa **tarefasPorIdentificador,const TarefaParaInsercao *tarefasOrdenadas,DataDeEntregaComum dataDeEntregaComum,IdentificadorDeTarefa *sequenciaConstruida) {
+static Boolean controllerHeuristicaMovimentoEhMelhor(Custo custoCandidato,QuantidadeDeTarefas posicaoCandidata,const TarefaParaInsercao *tarefaCandidata,Boolean encontrouMelhorMovimento,Custo melhorCusto,QuantidadeDeTarefas melhorPosicao,const TarefaParaInsercao *melhorTarefa) {
+    if(tarefaCandidata == NULL) {
+        return FALSO;
+    }
+
+    if(encontrouMelhorMovimento == FALSO) {
+        return VERDADEIRO;
+    }
+
+    if(custoCandidato < melhorCusto) {
+        return VERDADEIRO;
+    }
+
+    if(custoCandidato > melhorCusto) {
+        return FALSO;
+    }
+
+    if(melhorTarefa == NULL) {
+        return VERDADEIRO;
+    }
+
+    if((*tarefaCandidata).chavePrioridade > (*melhorTarefa).chavePrioridade) {
+        return VERDADEIRO;
+    }
+
+    if((*tarefaCandidata).chavePrioridade < (*melhorTarefa).chavePrioridade) {
+        return FALSO;
+    }
+
+    if(posicaoCandidata < melhorPosicao) {
+        return VERDADEIRO;
+    }
+
+    if(posicaoCandidata > melhorPosicao) {
+        return FALSO;
+    }
+
+    if((*tarefaCandidata).identificador < (*melhorTarefa).identificador) {
+        return VERDADEIRO;
+    }
+
+    return FALSO;
+}
+
+static Boolean controllerHeuristicaConstruirSequenciaPorInsercaoAdaptativa(const Instancia *instancia,const Tarefa **tarefasPorIdentificador,const TarefaParaInsercao *tarefasOrdenadas,DataDeEntregaComum dataDeEntregaComum,IdentificadorDeTarefa *sequenciaConstruida) {
     IdentificadorDeTarefa *sequenciaTemporaria;
     QuantidadeDeTarefas *posicoesCandidatas;
     InteiroPositivoDe32Bits *temposDeConclusaoCompactos;
-    QuantidadeDeTarefas indiceDaOrdem;
+    Boolean *tarefaJaInserida;
     QuantidadeDeTarefas quantidadeAtual;
+    QuantidadeDeTarefas indiceDaOrdem;
+    QuantidadeDeTarefas quantidadeDeTarefasCandidatas;
     QuantidadeDeTarefas quantidadeDePosicoes;
     QuantidadeDeTarefas indiceDaPosicaoCandidata;
     QuantidadeDeTarefas posicaoDeInsercao;
     QuantidadeDeTarefas melhorPosicao;
     IdentificadorDeTarefa identificadorDaTarefa;
+    IdentificadorDeTarefa melhorIdentificador;
+    const TarefaParaInsercao *tarefaCandidata;
+    const TarefaParaInsercao *melhorTarefa;
     Custo custoCandidato;
     Custo melhorCusto;
-    Boolean encontrouMelhorPosicao;
+    Boolean encontrouMelhorMovimento;
 
     if(instancia == NULL) {
         return FALSO;
@@ -514,89 +564,141 @@ static Boolean controllerHeuristicaConstruirSequenciaPorInsercao(const Instancia
     sequenciaTemporaria = (IdentificadorDeTarefa *) malloc(sizeof(IdentificadorDeTarefa) * (*instancia).quantidadeDeTarefas);
     posicoesCandidatas = (QuantidadeDeTarefas *) malloc(sizeof(QuantidadeDeTarefas) * ((QuantidadeDeTarefas) ((*instancia).quantidadeDeTarefas + 1)));
     temposDeConclusaoCompactos = (InteiroPositivoDe32Bits *) malloc(sizeof(InteiroPositivoDe32Bits) * (*instancia).quantidadeDeTarefas);
+    tarefaJaInserida = (Boolean *) malloc(sizeof(Boolean) * ((QuantidadeDeTarefas) ((*instancia).quantidadeDeTarefas + 1)));
 
     if(sequenciaTemporaria == NULL) {
         free(posicoesCandidatas);
         free(temposDeConclusaoCompactos);
+        free(tarefaJaInserida);
         return FALSO;
     }
 
     if(posicoesCandidatas == NULL) {
         free(sequenciaTemporaria);
         free(temposDeConclusaoCompactos);
+        free(tarefaJaInserida);
         return FALSO;
     }
 
     if(temposDeConclusaoCompactos == NULL) {
         free(sequenciaTemporaria);
         free(posicoesCandidatas);
+        free(tarefaJaInserida);
         return FALSO;
+    }
+
+    if(tarefaJaInserida == NULL) {
+        free(sequenciaTemporaria);
+        free(posicoesCandidatas);
+        free(temposDeConclusaoCompactos);
+        return FALSO;
+    }
+
+    for(indiceDaOrdem = 0;indiceDaOrdem <= (*instancia).quantidadeDeTarefas;indiceDaOrdem++) {
+        tarefaJaInserida[indiceDaOrdem] = FALSO;
     }
 
     quantidadeAtual = 0;
 
-    for(indiceDaOrdem = 0;indiceDaOrdem < (*instancia).quantidadeDeTarefas;indiceDaOrdem++) {
-        identificadorDaTarefa = tarefasOrdenadas[indiceDaOrdem].identificador;
-
-        if(controllerHeuristicaMontarPosicoesCandidatas(tarefasPorIdentificador,sequenciaConstruida,quantidadeAtual,&(tarefasOrdenadas[indiceDaOrdem]),dataDeEntregaComum,posicoesCandidatas,&quantidadeDePosicoes) == FALSO) {
-            free(sequenciaTemporaria);
-            free(posicoesCandidatas);
-            free(temposDeConclusaoCompactos);
-            return FALSO;
-        }
-
-        melhorPosicao = 0;
+    while(quantidadeAtual < (*instancia).quantidadeDeTarefas) {
+        quantidadeDeTarefasCandidatas = 0;
+        encontrouMelhorMovimento = FALSO;
         melhorCusto = 0;
-        encontrouMelhorPosicao = FALSO;
+        melhorPosicao = 0;
+        melhorIdentificador = 0;
+        melhorTarefa = NULL;
 
-        for(indiceDaPosicaoCandidata = 0;indiceDaPosicaoCandidata < quantidadeDePosicoes;indiceDaPosicaoCandidata++) {
-            posicaoDeInsercao = posicoesCandidatas[indiceDaPosicaoCandidata];
+        for(indiceDaOrdem = 0;indiceDaOrdem < (*instancia).quantidadeDeTarefas;indiceDaOrdem++) {
+            tarefaCandidata = &(tarefasOrdenadas[indiceDaOrdem]);
+            identificadorDaTarefa = (*tarefaCandidata).identificador;
 
-            if(controllerHeuristicaMontarSequenciaTemporaria(sequenciaConstruida,quantidadeAtual,identificadorDaTarefa,posicaoDeInsercao,sequenciaTemporaria) == FALSO) {
+            if(identificadorDaTarefa == 0) {
                 free(sequenciaTemporaria);
                 free(posicoesCandidatas);
                 free(temposDeConclusaoCompactos);
+                free(tarefaJaInserida);
                 return FALSO;
             }
 
-            if(controllerHeuristicaCalcularMelhorCustoDaSequencia(tarefasPorIdentificador,sequenciaTemporaria,(QuantidadeDeTarefas) (quantidadeAtual + 1),dataDeEntregaComum,temposDeConclusaoCompactos,&custoCandidato) == FALSO) {
+            if(identificadorDaTarefa > (*instancia).quantidadeDeTarefas) {
                 free(sequenciaTemporaria);
                 free(posicoesCandidatas);
                 free(temposDeConclusaoCompactos);
+                free(tarefaJaInserida);
                 return FALSO;
             }
 
-            if(encontrouMelhorPosicao == FALSO) {
-                melhorCusto = custoCandidato;
-                melhorPosicao = posicaoDeInsercao;
-                encontrouMelhorPosicao = VERDADEIRO;
+            if(tarefaJaInserida[identificadorDaTarefa] == VERDADEIRO) {
+                continue;
             }
-            else if(custoCandidato < melhorCusto) {
-                melhorCusto = custoCandidato;
-                melhorPosicao = posicaoDeInsercao;
+
+            quantidadeDeTarefasCandidatas++;
+
+            if(controllerHeuristicaMontarPosicoesCandidatas(tarefasPorIdentificador,sequenciaConstruida,quantidadeAtual,tarefaCandidata,dataDeEntregaComum,posicoesCandidatas,&quantidadeDePosicoes) == FALSO) {
+                free(sequenciaTemporaria);
+                free(posicoesCandidatas);
+                free(temposDeConclusaoCompactos);
+                free(tarefaJaInserida);
+                return FALSO;
+            }
+
+            for(indiceDaPosicaoCandidata = 0;indiceDaPosicaoCandidata < quantidadeDePosicoes;indiceDaPosicaoCandidata++) {
+                posicaoDeInsercao = posicoesCandidatas[indiceDaPosicaoCandidata];
+
+                if(controllerHeuristicaMontarSequenciaTemporaria(sequenciaConstruida,quantidadeAtual,identificadorDaTarefa,posicaoDeInsercao,sequenciaTemporaria) == FALSO) {
+                    free(sequenciaTemporaria);
+                    free(posicoesCandidatas);
+                    free(temposDeConclusaoCompactos);
+                    free(tarefaJaInserida);
+                    return FALSO;
+                }
+
+                if(controllerHeuristicaCalcularMelhorCustoDaSequencia(tarefasPorIdentificador,sequenciaTemporaria,(QuantidadeDeTarefas) (quantidadeAtual + 1),dataDeEntregaComum,temposDeConclusaoCompactos,&custoCandidato) == FALSO) {
+                    free(sequenciaTemporaria);
+                    free(posicoesCandidatas);
+                    free(temposDeConclusaoCompactos);
+                    free(tarefaJaInserida);
+                    return FALSO;
+                }
+
+                if(controllerHeuristicaMovimentoEhMelhor(custoCandidato,posicaoDeInsercao,tarefaCandidata,encontrouMelhorMovimento,melhorCusto,melhorPosicao,melhorTarefa) == VERDADEIRO) {
+                    melhorCusto = custoCandidato;
+                    melhorPosicao = posicaoDeInsercao;
+                    melhorIdentificador = identificadorDaTarefa;
+                    melhorTarefa = tarefaCandidata;
+                    encontrouMelhorMovimento = VERDADEIRO;
+                }
+            }
+
+            if(quantidadeDeTarefasCandidatas >= QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS) {
+                break;
             }
         }
 
-        if(encontrouMelhorPosicao == FALSO) {
+        if(encontrouMelhorMovimento == FALSO) {
             free(sequenciaTemporaria);
             free(posicoesCandidatas);
             free(temposDeConclusaoCompactos);
+            free(tarefaJaInserida);
             return FALSO;
         }
 
-        if(controllerHeuristicaInserirTarefaNaSequencia(sequenciaConstruida,quantidadeAtual,identificadorDaTarefa,melhorPosicao) == FALSO) {
+        if(controllerHeuristicaInserirTarefaNaSequencia(sequenciaConstruida,quantidadeAtual,melhorIdentificador,melhorPosicao) == FALSO) {
             free(sequenciaTemporaria);
             free(posicoesCandidatas);
             free(temposDeConclusaoCompactos);
+            free(tarefaJaInserida);
             return FALSO;
         }
 
+        tarefaJaInserida[melhorIdentificador] = VERDADEIRO;
         quantidadeAtual++;
     }
 
     free(sequenciaTemporaria);
     free(posicoesCandidatas);
     free(temposDeConclusaoCompactos);
+    free(tarefaJaInserida);
 
     return VERDADEIRO;
 }
@@ -649,7 +751,7 @@ Boolean controllerHeuristicaConstruirSolucao(const Instancia *instancia,const He
         return FALSO;
     }
 
-    if(controllerHeuristicaConstruirSequenciaPorInsercao(instancia,tarefasPorIdentificador,tarefasOrdenadas,dataDeEntregaComum,sequenciaConstruida) == FALSO) {
+    if(controllerHeuristicaConstruirSequenciaPorInsercaoAdaptativa(instancia,tarefasPorIdentificador,tarefasOrdenadas,dataDeEntregaComum,sequenciaConstruida) == FALSO) {
         free(tarefasOrdenadas);
         free(tarefasPorIdentificador);
         free(sequenciaConstruida);
