@@ -1,7 +1,18 @@
 #include "heuristica.h"
 
-#include <stddef.h>
-#include <stdio.h>
+#include <string.h>
+
+static Boolean heuristicaTextoEhNuloOuVazio(const char *texto) {
+    if(texto == 0) {
+        return VERDADEIRO;
+    }
+
+    if(texto[0] == '\0') {
+        return VERDADEIRO;
+    }
+
+    return FALSO;
+}
 
 Heuristica criarHeuristicaVazia(void) {
     Heuristica heuristica;
@@ -14,80 +25,62 @@ Heuristica criarHeuristicaVazia(void) {
 }
 
 Boolean inicializarHeuristica(Heuristica *heuristica,IdentificadorDeHeuristica identificadorDaHeuristica,const char *nomeDaHeuristica,const char *descricaoDaHeuristica) {
-    if(heuristica == NULL) {
+    if(heuristica == 0) {
         return FALSO;
     }
 
-    else if(identificadorDaHeuristica == 0) {
+    if(identificadorDaHeuristica == 0) {
         return FALSO;
     }
 
-    else if(nomeDaHeuristica == NULL) {
+    if(heuristicaTextoEhNuloOuVazio(nomeDaHeuristica) == VERDADEIRO) {
         return FALSO;
     }
 
-    else if(nomeDaHeuristica[0] == '\0') {
+    if(heuristicaTextoEhNuloOuVazio(descricaoDaHeuristica) == VERDADEIRO) {
         return FALSO;
     }
-
-    else if(descricaoDaHeuristica == NULL) {
-        return FALSO;
-    }
-
-    else if(descricaoDaHeuristica[0] == '\0') {
-        return FALSO;
-    }
-
-    (*heuristica) = criarHeuristicaVazia();
 
     (*heuristica).identificadorDaHeuristica = identificadorDaHeuristica;
 
-    snprintf(
-        (*heuristica).nomeDaHeuristica,
-        TAMANHO_MAXIMO_DE_NOME_DE_HEURISTICA,
-        "%s",
-        nomeDaHeuristica
-    );
+    strncpy((*heuristica).nomeDaHeuristica,nomeDaHeuristica,TAMANHO_MAXIMO_DE_NOME_DE_HEURISTICA - 1);
+    (*heuristica).nomeDaHeuristica[TAMANHO_MAXIMO_DE_NOME_DE_HEURISTICA - 1] = '\0';
 
-    snprintf(
-        (*heuristica).descricaoDaHeuristica,
-        TAMANHO_MAXIMO_DE_DESCRICAO_DE_HEURISTICA,
-        "%s",
-        descricaoDaHeuristica
-    );
+    strncpy((*heuristica).descricaoDaHeuristica,descricaoDaHeuristica,TAMANHO_MAXIMO_DE_DESCRICAO_DE_HEURISTICA - 1);
+    (*heuristica).descricaoDaHeuristica[TAMANHO_MAXIMO_DE_DESCRICAO_DE_HEURISTICA - 1] = '\0';
 
     return VERDADEIRO;
 }
 
-Heuristica criarHeuristicaConstrutivaFuzzy(void) {
+Heuristica criarHeuristicaPorInsercaoTemporal(void) {
     Heuristica heuristica;
 
     heuristica = criarHeuristicaVazia();
 
     inicializarHeuristica(
         &heuristica,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
-        NOME_HEURISTICA_CONSTRUTIVA_FUZZY,
-        DESCRICAO_HEURISTICA_CONSTRUTIVA_FUZZY
+        IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
+        NOME_HEURISTICA_INSERCAO_TEMPORAL,
+        DESCRICAO_HEURISTICA_INSERCAO_TEMPORAL
     );
 
     return heuristica;
 }
 
 Boolean heuristicaEhValida(const Heuristica *heuristica) {
-    if(heuristica == NULL) {
+    if(heuristica == 0) {
         return FALSO;
     }
 
-    else if((*heuristica).identificadorDaHeuristica == 0) {
+    if((*heuristica).identificadorDaHeuristica == 0) {
         return FALSO;
     }
 
-    else if((*heuristica).nomeDaHeuristica[0] == '\0') {
+    if(heuristicaTextoEhNuloOuVazio((*heuristica).nomeDaHeuristica) == VERDADEIRO) {
         return FALSO;
     }
 
-    else if((*heuristica).descricaoDaHeuristica[0] == '\0') {
+    if(heuristicaTextoEhNuloOuVazio((*heuristica).descricaoDaHeuristica) == VERDADEIRO) {
         return FALSO;
     }
 
@@ -95,9 +88,11 @@ Boolean heuristicaEhValida(const Heuristica *heuristica) {
 }
 
 void limparHeuristica(Heuristica *heuristica) {
-    if(heuristica == NULL) {
+    if(heuristica == 0) {
         return;
     }
 
-    (*heuristica) = criarHeuristicaVazia();
+    (*heuristica).identificadorDaHeuristica = 0;
+    (*heuristica).nomeDaHeuristica[0] = '\0';
+    (*heuristica).descricaoDaHeuristica[0] = '\0';
 }

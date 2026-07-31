@@ -18,7 +18,7 @@ static ResultadoDeExecucao criarResultadoDeExecucaoParaTeste(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,

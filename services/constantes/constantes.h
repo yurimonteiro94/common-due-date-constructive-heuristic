@@ -87,9 +87,9 @@ typedef double TempoComputacionalEmMilissegundos;
 #define TIPO_REFERENCIA_AUTORES "autores"
 #define TIPO_REFERENCIA_DESCONHECIDO "desconhecido"
 
-#define IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY 1
-#define NOME_HEURISTICA_CONSTRUTIVA_FUZZY "Heuristica Construtiva por Arbitragem Temporal Preditiva"
-#define DESCRICAO_HEURISTICA_CONSTRUTIVA_FUZZY "Heuristica construtiva inspirada em arbitragem temporal de recurso unico, com geracao de multiplas sequencias candidatas e escolha da melhor pelo custo da funcao objetivo."
+#define IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL 1
+#define NOME_HEURISTICA_INSERCAO_TEMPORAL "Heuristica Construtiva por Insercao Temporal"
+#define DESCRICAO_HEURISTICA_INSERCAO_TEMPORAL "Heuristica construtiva que inicia com uma sequencia vazia e insere as tarefas uma a uma, avaliando posicoes de insercao na solucao parcial e considerando o custo de adiantamento e atraso apos deslocamento temporal."
 
 #define IDENTIFICADOR_EXPERIMENTO_PADRAO 1
 #define NOME_EXPERIMENTO_PADRAO "Experimento Principal"

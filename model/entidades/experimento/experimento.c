@@ -158,7 +158,7 @@ Experimento criarExperimentoPadrao(void) {
     Heuristica heuristica;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(&experimento,(IdentificadorDeExperimento) IDENTIFICADOR_EXPERIMENTO_PADRAO,NOME_EXPERIMENTO_PADRAO,DESCRICAO_EXPERIMENTO_PADRAO,heuristica);
 

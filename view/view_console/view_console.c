@@ -5,7 +5,7 @@
 void viewConsoleExibirCabecalho(void) {
     printf("============================================================\n");
     printf("Prazo Nebuloso\n");
-    printf("Heuristica Construtiva por Arbitragem Temporal Preditiva\n");
+    printf("Heuristica Construtiva por Insercao Temporal\n");
     printf("============================================================\n");
     printf("\n");
 }

@@ -36,7 +36,7 @@ static int testarConstrucaoDeSolucaoPequena(void) {
     DataDeEntregaComum dataDeEntregaComum;
 
     instancia = criarInstanciaVazia();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
     solucao = criarSolucaoVazia();
     custo = 0;
 
@@ -95,7 +95,7 @@ static int testarConstrucaoDeSolucaoDaPrimeiraInstanciaSch10(void) {
     DataDeEntregaComum dataDeEntregaComum;
 
     instancia = criarInstanciaVazia();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
     solucao = criarSolucaoVazia();
     custo = 0;
 
@@ -154,7 +154,7 @@ static int testarConstrucaoDeSolucaoDaPrimeiraInstanciaSch1000(void) {
     DataDeEntregaComum dataDeEntregaComum;
 
     instancia = criarInstanciaVazia();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
     solucao = criarSolucaoVazia();
     custo = 0;
 
@@ -201,7 +201,7 @@ static int testarInstanciaNulaInvalida(void) {
     Heuristica heuristica;
     Solucao solucao;
 
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
     solucao = criarSolucaoVazia();
 
     if(controllerHeuristicaConstruirSolucao(NULL,&heuristica,(FatorH) FATOR_H_06,&solucao) != FALSO) {
@@ -243,7 +243,7 @@ static int testarPonteiroDeSolucaoNuloInvalido(void) {
     Heuristica heuristica;
 
     instancia = criarInstanciaVazia();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     prepararInstanciaPequena(&instancia);
 
@@ -267,7 +267,7 @@ static int testarFatorHInvalido(void) {
     Solucao solucao;
 
     instancia = criarInstanciaVazia();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
     solucao = criarSolucaoVazia();
 
     prepararInstanciaPequena(&instancia);

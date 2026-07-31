@@ -11,7 +11,7 @@ typedef struct Heuristica {
 
 Heuristica criarHeuristicaVazia(void);
 Boolean inicializarHeuristica(Heuristica *heuristica,IdentificadorDeHeuristica identificadorDaHeuristica,const char *nomeDaHeuristica,const char *descricaoDaHeuristica);
-Heuristica criarHeuristicaConstrutivaFuzzy(void);
+Heuristica criarHeuristicaPorInsercaoTemporal(void);
 Boolean heuristicaEhValida(const Heuristica *heuristica);
 void limparHeuristica(Heuristica *heuristica);
 

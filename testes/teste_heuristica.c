@@ -79,36 +79,36 @@ static int testarInicializacaoDeHeuristica(void) {
     return 0;
 }
 
-static int testarCriacaoDaHeuristicaConstrutivaFuzzy(void) {
+static int testarCriacaoDaHeuristicaPorInsercaoTemporal(void) {
     Heuristica heuristica;
 
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
-    if(heuristica.identificadorDaHeuristica != IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY) {
-        printf("[ERRO] Identificador da heuristica construtiva por arbitragem temporal preditiva incorreto.\n");
-
-        return 1;
-    }
-
-    if(strcmp(heuristica.nomeDaHeuristica,NOME_HEURISTICA_CONSTRUTIVA_FUZZY) != 0) {
-        printf("[ERRO] Nome da heuristica construtiva por arbitragem temporal preditiva incorreto.\n");
+    if(heuristica.identificadorDaHeuristica != IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL) {
+        printf("[ERRO] Identificador da heuristica construtiva por insercao temporal incorreto.\n");
 
         return 1;
     }
 
-    if(strcmp(heuristica.descricaoDaHeuristica,DESCRICAO_HEURISTICA_CONSTRUTIVA_FUZZY) != 0) {
-        printf("[ERRO] Descricao da heuristica construtiva por arbitragem temporal preditiva incorreta.\n");
+    if(strcmp(heuristica.nomeDaHeuristica,NOME_HEURISTICA_INSERCAO_TEMPORAL) != 0) {
+        printf("[ERRO] Nome da heuristica construtiva por insercao temporal incorreto.\n");
+
+        return 1;
+    }
+
+    if(strcmp(heuristica.descricaoDaHeuristica,DESCRICAO_HEURISTICA_INSERCAO_TEMPORAL) != 0) {
+        printf("[ERRO] Descricao da heuristica construtiva por insercao temporal incorreta.\n");
 
         return 1;
     }
 
     if(heuristicaEhValida(&heuristica) == FALSO) {
-        printf("[ERRO] Heuristica construtiva fuzzy deveria ser valida.\n");
+        printf("[ERRO] Heuristica construtiva por insercao temporal deveria ser valida.\n");
 
         return 1;
     }
 
-    printf("[OK] Criacao da heuristica construtiva por arbitragem temporal preditiva.\n");
+    printf("[OK] Criacao da heuristica construtiva por insercao temporal.\n");
 
     return 0;
 }
@@ -248,7 +248,7 @@ static int testarInicializacaoComDescricaoVaziaInvalida(void) {
 static int testarLimpezaDeHeuristica(void) {
     Heuristica heuristica;
 
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     limparHeuristica(&heuristica);
 
@@ -284,7 +284,7 @@ int main(void) {
 
     quantidadeDeErros += testarCriacaoDeHeuristicaVazia();
     quantidadeDeErros += testarInicializacaoDeHeuristica();
-    quantidadeDeErros += testarCriacaoDaHeuristicaConstrutivaFuzzy();
+    quantidadeDeErros += testarCriacaoDaHeuristicaPorInsercaoTemporal();
     quantidadeDeErros += testarHeuristicaNulaInvalida();
     quantidadeDeErros += testarInicializacaoComIdentificadorZeroInvalida();
     quantidadeDeErros += testarInicializacaoComNomeNuloInvalida();

@@ -41,7 +41,7 @@ static int testarInicializacaoDeResultadoDeExecucao(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,
@@ -69,7 +69,7 @@ static int testarInicializacaoDeResultadoDeExecucao(void) {
         return 1;
     }
 
-    if(resultadoDeExecucao.identificadorDaHeuristica != IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY) {
+    if(resultadoDeExecucao.identificadorDaHeuristica != IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL) {
         printf("[ERRO] Identificador da heuristica incorreto.\n");
 
         return 1;
@@ -156,7 +156,7 @@ static int testarInicializacaoComIdentificadorZeroInvalida(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 0,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,
@@ -187,7 +187,7 @@ static int testarInicializacaoComNomeDeArquivoNuloInvalida(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NULL,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,
@@ -218,7 +218,7 @@ static int testarInicializacaoComFatorHInvalido(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) 5,
@@ -249,7 +249,7 @@ static int testarInicializacaoComTempoNegativoInvalida(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,
@@ -280,7 +280,7 @@ static int testarResultadoDeExecucaoComCustoZeroValido(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,
@@ -316,7 +316,7 @@ static int testarLimpezaDeResultadoDeExecucao(void) {
         &resultadoDeExecucao,
         (IdentificadorDeExecucao) 1,
         NOME_ARQUIVO_SCH10,
-        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_CONSTRUTIVA_FUZZY,
+        (IdentificadorDeHeuristica) IDENTIFICADOR_HEURISTICA_INSERCAO_TEMPORAL,
         (InteiroPositivoDe16Bits) 1,
         (QuantidadeDeTarefas) 10,
         (FatorH) FATOR_H_06,

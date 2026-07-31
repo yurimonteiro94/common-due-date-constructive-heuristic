@@ -56,7 +56,7 @@ static int testarInicializacaoDeExperimento(void) {
     Boolean resultado;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     resultado = inicializarExperimento(
         &experimento,
@@ -106,7 +106,7 @@ static int testarAdicaoDeArquivosDeInstancia(void) {
     Heuristica heuristica;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(
         &experimento,
@@ -147,7 +147,7 @@ static int testarSubstituicaoDeArquivoDeInstancia(void) {
     Heuristica heuristica;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(
         &experimento,
@@ -182,7 +182,7 @@ static int testarAdicaoDeFatoresH(void) {
     Heuristica heuristica;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(
         &experimento,
@@ -223,7 +223,7 @@ static int testarSubstituicaoDeFatorH(void) {
     Heuristica heuristica;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(
         &experimento,
@@ -362,7 +362,7 @@ static int testarArquivoComIndiceInvalido(void) {
     Boolean resultado;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(
         &experimento,
@@ -395,7 +395,7 @@ static int testarFatorHInvalido(void) {
     Boolean resultado;
 
     experimento = criarExperimentoVazio();
-    heuristica = criarHeuristicaConstrutivaFuzzy();
+    heuristica = criarHeuristicaPorInsercaoTemporal();
 
     inicializarExperimento(
         &experimento,
