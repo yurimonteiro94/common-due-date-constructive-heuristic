@@ -6,7 +6,7 @@
 #define QUANTIDADE_DE_AMOSTRAS_GLOBAIS 60
 #define RAIO_DA_JANELA_TEMPORAL 20
 #define RAIO_DA_JANELA_V_SHAPED 40
-#define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 4
+#define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 2
 
 typedef struct TarefaParaInsercao {
     IdentificadorDeTarefa identificador;
