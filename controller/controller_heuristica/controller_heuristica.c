@@ -5,6 +5,7 @@
 #define LIMITE_AVALIACAO_COMPLETA 120
 #define QUANTIDADE_DE_AMOSTRAS_GLOBAIS 60
 #define RAIO_DA_JANELA_TEMPORAL 20
+#define RAIO_DA_JANELA_V_SHAPED 12
 #define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 4
 
 typedef struct TarefaParaInsercao {
@@ -391,10 +392,187 @@ static QuantidadeDeTarefas controllerHeuristicaEncontrarPosicaoPorAlvoTemporal(c
     return quantidadeAtual;
 }
 
+
+static Boolean controllerHeuristicaTarefaNovaDeveVirAntesPorRazaoAdiantamento(const TarefaParaInsercao *tarefaNova,const Tarefa *tarefaAtual) {
+    unsigned long long ladoNovo;
+    unsigned long long ladoAtual;
+    double prioridadeAtual;
+
+    if(tarefaNova == NULL) {
+        return FALSO;
+    }
+
+    if(tarefaAtual == NULL) {
+        return VERDADEIRO;
+    }
+
+    ladoNovo = ((unsigned long long) (*tarefaNova).tempoProcessamento) * ((unsigned long long) (*tarefaAtual).penalidadeAdiantamento);
+    ladoAtual = ((unsigned long long) (*tarefaAtual).tempoProcessamento) * ((unsigned long long) (*tarefaNova).penalidadeAdiantamento);
+
+    if(ladoNovo > ladoAtual) {
+        return VERDADEIRO;
+    }
+
+    if(ladoNovo < ladoAtual) {
+        return FALSO;
+    }
+
+    prioridadeAtual = controllerHeuristicaCalcularChavePrioridade(tarefaAtual);
+
+    if((*tarefaNova).chavePrioridade > prioridadeAtual) {
+        return VERDADEIRO;
+    }
+
+    if((*tarefaNova).chavePrioridade < prioridadeAtual) {
+        return FALSO;
+    }
+
+    if((*tarefaNova).identificador < (*tarefaAtual).identificador) {
+        return VERDADEIRO;
+    }
+
+    return FALSO;
+}
+
+static Boolean controllerHeuristicaTarefaNovaDeveVirAntesPorRazaoAtraso(const TarefaParaInsercao *tarefaNova,const Tarefa *tarefaAtual) {
+    unsigned long long ladoNovo;
+    unsigned long long ladoAtual;
+    double prioridadeAtual;
+
+    if(tarefaNova == NULL) {
+        return FALSO;
+    }
+
+    if(tarefaAtual == NULL) {
+        return VERDADEIRO;
+    }
+
+    ladoNovo = ((unsigned long long) (*tarefaNova).tempoProcessamento) * ((unsigned long long) (*tarefaAtual).penalidadeAtraso);
+    ladoAtual = ((unsigned long long) (*tarefaAtual).tempoProcessamento) * ((unsigned long long) (*tarefaNova).penalidadeAtraso);
+
+    if(ladoNovo < ladoAtual) {
+        return VERDADEIRO;
+    }
+
+    if(ladoNovo > ladoAtual) {
+        return FALSO;
+    }
+
+    prioridadeAtual = controllerHeuristicaCalcularChavePrioridade(tarefaAtual);
+
+    if((*tarefaNova).chavePrioridade > prioridadeAtual) {
+        return VERDADEIRO;
+    }
+
+    if((*tarefaNova).chavePrioridade < prioridadeAtual) {
+        return FALSO;
+    }
+
+    if((*tarefaNova).identificador < (*tarefaAtual).identificador) {
+        return VERDADEIRO;
+    }
+
+    return FALSO;
+}
+
+static QuantidadeDeTarefas controllerHeuristicaEncontrarPosicaoPorRazaoAdiantamento(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,const TarefaParaInsercao *tarefaNova) {
+    QuantidadeDeTarefas posicao;
+    IdentificadorDeTarefa identificadorDaTarefaAtual;
+    const Tarefa *tarefaAtual;
+
+    if(tarefasPorIdentificador == NULL) {
+        return 0;
+    }
+
+    if(sequenciaAtual == NULL && quantidadeAtual > 0) {
+        return 0;
+    }
+
+    if(tarefaNova == NULL) {
+        return quantidadeAtual;
+    }
+
+    for(posicao = 0;posicao < quantidadeAtual;posicao++) {
+        identificadorDaTarefaAtual = sequenciaAtual[posicao];
+
+        if(identificadorDaTarefaAtual == 0) {
+            return quantidadeAtual;
+        }
+
+        tarefaAtual = tarefasPorIdentificador[identificadorDaTarefaAtual];
+
+        if(tarefaAtual == NULL) {
+            return quantidadeAtual;
+        }
+
+        if(controllerHeuristicaTarefaNovaDeveVirAntesPorRazaoAdiantamento(tarefaNova,tarefaAtual) == VERDADEIRO) {
+            return posicao;
+        }
+    }
+
+    return quantidadeAtual;
+}
+
+static QuantidadeDeTarefas controllerHeuristicaEncontrarPosicaoPorRazaoAtraso(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,const TarefaParaInsercao *tarefaNova) {
+    QuantidadeDeTarefas posicao;
+    IdentificadorDeTarefa identificadorDaTarefaAtual;
+    const Tarefa *tarefaAtual;
+
+    if(tarefasPorIdentificador == NULL) {
+        return 0;
+    }
+
+    if(sequenciaAtual == NULL && quantidadeAtual > 0) {
+        return 0;
+    }
+
+    if(tarefaNova == NULL) {
+        return quantidadeAtual;
+    }
+
+    for(posicao = 0;posicao < quantidadeAtual;posicao++) {
+        identificadorDaTarefaAtual = sequenciaAtual[posicao];
+
+        if(identificadorDaTarefaAtual == 0) {
+            return quantidadeAtual;
+        }
+
+        tarefaAtual = tarefasPorIdentificador[identificadorDaTarefaAtual];
+
+        if(tarefaAtual == NULL) {
+            return quantidadeAtual;
+        }
+
+        if(controllerHeuristicaTarefaNovaDeveVirAntesPorRazaoAtraso(tarefaNova,tarefaAtual) == VERDADEIRO) {
+            return posicao;
+        }
+    }
+
+    return quantidadeAtual;
+}
+
+static void controllerHeuristicaAdicionarJanelaVShaped(QuantidadeDeTarefas *posicoesCandidatas,QuantidadeDeTarefas *quantidadeDePosicoes,QuantidadeDeTarefas quantidadeAtual,QuantidadeDeTarefas posicaoCentral) {
+    int deslocamento;
+
+    if(posicoesCandidatas == NULL) {
+        return;
+    }
+
+    if(quantidadeDePosicoes == NULL) {
+        return;
+    }
+
+    for(deslocamento = -RAIO_DA_JANELA_V_SHAPED;deslocamento <= RAIO_DA_JANELA_V_SHAPED;deslocamento++) {
+        controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,((int) posicaoCentral) + deslocamento);
+    }
+}
+
 static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,const TarefaParaInsercao *tarefaNova,DataDeEntregaComum dataDeEntregaComum,QuantidadeDeTarefas *posicoesCandidatas,QuantidadeDeTarefas *quantidadeDePosicoes) {
     QuantidadeDeTarefas posicao;
     QuantidadeDeTarefas passoGlobal;
     QuantidadeDeTarefas posicaoTemporal;
+    QuantidadeDeTarefas posicaoPorRazaoAdiantamento;
+    QuantidadeDeTarefas posicaoPorRazaoAtraso;
     InteiroPositivoDe32Bits alvoAntes;
     InteiroPositivoDe32Bits alvoNaData;
     InteiroPositivoDe32Bits alvoDepois;
@@ -449,6 +627,12 @@ static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **taref
     }
 
     controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,(int) quantidadeAtual);
+
+    posicaoPorRazaoAdiantamento = controllerHeuristicaEncontrarPosicaoPorRazaoAdiantamento(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,tarefaNova);
+    controllerHeuristicaAdicionarJanelaVShaped(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,posicaoPorRazaoAdiantamento);
+
+    posicaoPorRazaoAtraso = controllerHeuristicaEncontrarPosicaoPorRazaoAtraso(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,tarefaNova);
+    controllerHeuristicaAdicionarJanelaVShaped(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,posicaoPorRazaoAtraso);
 
     if(dataDeEntregaComum > (*tarefaNova).tempoProcessamento) {
         alvoAntes = dataDeEntregaComum - (*tarefaNova).tempoProcessamento;
