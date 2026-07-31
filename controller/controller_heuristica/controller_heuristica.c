@@ -7,8 +7,8 @@
 #define RAIO_DA_JANELA_TEMPORAL 20
 #define RAIO_DA_JANELA_V_SHAPED 40
 #define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 2
-#define PESO_ARREPENDIMENTO_PERCENTUAL 35
-#define RAIO_DA_JANELA_CONCLUSAO_NA_DATA 30
+#define PESO_ARREPENDIMENTO_PERCENTUAL 45
+#define RAIO_DA_JANELA_CONCLUSAO_NA_DATA 40
 
 typedef struct TarefaParaInsercao {
     IdentificadorDeTarefa identificador;
@@ -54,6 +54,7 @@ static double controllerHeuristicaCalcularChavePrioridade(const Tarefa *tarefa) 
     double tempoProcessamento;
     double penalidadeAdiantamento;
     double penalidadeAtraso;
+    double maiorPenalidade;
 
     if(tarefa == NULL) {
         return 0.0;
@@ -63,7 +64,14 @@ static double controllerHeuristicaCalcularChavePrioridade(const Tarefa *tarefa) 
     penalidadeAdiantamento = (double) (*tarefa).penalidadeAdiantamento;
     penalidadeAtraso = (double) (*tarefa).penalidadeAtraso;
 
-    return tempoProcessamento * (penalidadeAdiantamento + penalidadeAtraso);
+    if(penalidadeAdiantamento >= penalidadeAtraso) {
+        maiorPenalidade = penalidadeAdiantamento;
+    }
+    else {
+        maiorPenalidade = penalidadeAtraso;
+    }
+
+    return tempoProcessamento * maiorPenalidade;
 }
 
 static int controllerHeuristicaCompararPrioridadeDecrescente(const void *primeiro,const void *segundo) {
