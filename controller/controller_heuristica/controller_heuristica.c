@@ -7,6 +7,7 @@
 #define RAIO_DA_JANELA_TEMPORAL 20
 #define RAIO_DA_JANELA_V_SHAPED 40
 #define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 2
+#define PESO_ARREPENDIMENTO_PERCENTUAL 20
 
 typedef struct TarefaParaInsercao {
     IdentificadorDeTarefa identificador;
@@ -665,7 +666,74 @@ static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **taref
     return VERDADEIRO;
 }
 
-static Boolean controllerHeuristicaMovimentoEhMelhor(Custo custoCandidato,QuantidadeDeTarefas posicaoCandidata,const TarefaParaInsercao *tarefaCandidata,Boolean encontrouMelhorMovimento,Custo melhorCusto,QuantidadeDeTarefas melhorPosicao,const TarefaParaInsercao *melhorTarefa) {
+static long long controllerHeuristicaCalcularPontuacaoComArrependimento(Custo custo,Custo arrependimento) {
+    long long desconto;
+    long long pontuacao;
+
+    desconto = (((long long) arrependimento) * ((long long) PESO_ARREPENDIMENTO_PERCENTUAL)) / 100LL;
+    pontuacao = ((long long) custo) - desconto;
+
+    return pontuacao;
+}
+
+static Boolean controllerHeuristicaAtualizarMelhoresCustosDaTarefa(Custo custoCandidato,QuantidadeDeTarefas posicaoCandidata,Boolean *encontrouMelhorPosicao,Custo *melhorCustoDaTarefa,Custo *segundoMelhorCustoDaTarefa,QuantidadeDeTarefas *melhorPosicaoDaTarefa) {
+    if(encontrouMelhorPosicao == NULL) {
+        return FALSO;
+    }
+
+    if(melhorCustoDaTarefa == NULL) {
+        return FALSO;
+    }
+
+    if(segundoMelhorCustoDaTarefa == NULL) {
+        return FALSO;
+    }
+
+    if(melhorPosicaoDaTarefa == NULL) {
+        return FALSO;
+    }
+
+    if((*encontrouMelhorPosicao) == FALSO) {
+        (*melhorCustoDaTarefa) = custoCandidato;
+        (*segundoMelhorCustoDaTarefa) = custoCandidato;
+        (*melhorPosicaoDaTarefa) = posicaoCandidata;
+        (*encontrouMelhorPosicao) = VERDADEIRO;
+        return VERDADEIRO;
+    }
+
+    if(custoCandidato < (*melhorCustoDaTarefa)) {
+        (*segundoMelhorCustoDaTarefa) = (*melhorCustoDaTarefa);
+        (*melhorCustoDaTarefa) = custoCandidato;
+        (*melhorPosicaoDaTarefa) = posicaoCandidata;
+        return VERDADEIRO;
+    }
+
+    if(custoCandidato == (*melhorCustoDaTarefa)) {
+        if(posicaoCandidata < (*melhorPosicaoDaTarefa)) {
+            (*melhorPosicaoDaTarefa) = posicaoCandidata;
+        }
+
+        (*segundoMelhorCustoDaTarefa) = custoCandidato;
+        return VERDADEIRO;
+    }
+
+    if((*segundoMelhorCustoDaTarefa) == (*melhorCustoDaTarefa)) {
+        (*segundoMelhorCustoDaTarefa) = custoCandidato;
+        return VERDADEIRO;
+    }
+
+    if(custoCandidato < (*segundoMelhorCustoDaTarefa)) {
+        (*segundoMelhorCustoDaTarefa) = custoCandidato;
+        return VERDADEIRO;
+    }
+
+    return VERDADEIRO;
+}
+
+static Boolean controllerHeuristicaMovimentoEhMelhor(Custo custoCandidato,Custo arrependimentoCandidato,QuantidadeDeTarefas posicaoCandidata,const TarefaParaInsercao *tarefaCandidata,Boolean encontrouMelhorMovimento,Custo melhorCusto,Custo melhorArrependimento,QuantidadeDeTarefas melhorPosicao,const TarefaParaInsercao *melhorTarefa) {
+    long long pontuacaoCandidata;
+    long long melhorPontuacao;
+
     if(tarefaCandidata == NULL) {
         return FALSO;
     }
@@ -674,11 +742,30 @@ static Boolean controllerHeuristicaMovimentoEhMelhor(Custo custoCandidato,Quanti
         return VERDADEIRO;
     }
 
+    pontuacaoCandidata = controllerHeuristicaCalcularPontuacaoComArrependimento(custoCandidato,arrependimentoCandidato);
+    melhorPontuacao = controllerHeuristicaCalcularPontuacaoComArrependimento(melhorCusto,melhorArrependimento);
+
+    if(pontuacaoCandidata < melhorPontuacao) {
+        return VERDADEIRO;
+    }
+
+    if(pontuacaoCandidata > melhorPontuacao) {
+        return FALSO;
+    }
+
     if(custoCandidato < melhorCusto) {
         return VERDADEIRO;
     }
 
     if(custoCandidato > melhorCusto) {
+        return FALSO;
+    }
+
+    if(arrependimentoCandidato > melhorArrependimento) {
+        return VERDADEIRO;
+    }
+
+    if(arrependimentoCandidato < melhorArrependimento) {
         return FALSO;
     }
 
@@ -721,13 +808,19 @@ static Boolean controllerHeuristicaConstruirSequenciaPorInsercaoAdaptativa(const
     QuantidadeDeTarefas indiceDaPosicaoCandidata;
     QuantidadeDeTarefas posicaoDeInsercao;
     QuantidadeDeTarefas melhorPosicao;
+    QuantidadeDeTarefas melhorPosicaoDaTarefa;
     IdentificadorDeTarefa identificadorDaTarefa;
     IdentificadorDeTarefa melhorIdentificador;
     const TarefaParaInsercao *tarefaCandidata;
     const TarefaParaInsercao *melhorTarefa;
     Custo custoCandidato;
     Custo melhorCusto;
+    Custo melhorArrependimento;
+    Custo melhorCustoDaTarefa;
+    Custo segundoMelhorCustoDaTarefa;
+    Custo arrependimentoDaTarefa;
     Boolean encontrouMelhorMovimento;
+    Boolean encontrouMelhorPosicaoDaTarefa;
 
     if(instancia == NULL) {
         return FALSO;
@@ -788,6 +881,7 @@ static Boolean controllerHeuristicaConstruirSequenciaPorInsercaoAdaptativa(const
         quantidadeDeTarefasCandidatas = 0;
         encontrouMelhorMovimento = FALSO;
         melhorCusto = 0;
+        melhorArrependimento = 0;
         melhorPosicao = 0;
         melhorIdentificador = 0;
         melhorTarefa = NULL;
@@ -826,6 +920,12 @@ static Boolean controllerHeuristicaConstruirSequenciaPorInsercaoAdaptativa(const
                 return FALSO;
             }
 
+            encontrouMelhorPosicaoDaTarefa = FALSO;
+            melhorCustoDaTarefa = 0;
+            segundoMelhorCustoDaTarefa = 0;
+            arrependimentoDaTarefa = 0;
+            melhorPosicaoDaTarefa = 0;
+
             for(indiceDaPosicaoCandidata = 0;indiceDaPosicaoCandidata < quantidadeDePosicoes;indiceDaPosicaoCandidata++) {
                 posicaoDeInsercao = posicoesCandidatas[indiceDaPosicaoCandidata];
 
@@ -845,9 +945,27 @@ static Boolean controllerHeuristicaConstruirSequenciaPorInsercaoAdaptativa(const
                     return FALSO;
                 }
 
-                if(controllerHeuristicaMovimentoEhMelhor(custoCandidato,posicaoDeInsercao,tarefaCandidata,encontrouMelhorMovimento,melhorCusto,melhorPosicao,melhorTarefa) == VERDADEIRO) {
-                    melhorCusto = custoCandidato;
-                    melhorPosicao = posicaoDeInsercao;
+                if(controllerHeuristicaAtualizarMelhoresCustosDaTarefa(custoCandidato,posicaoDeInsercao,&encontrouMelhorPosicaoDaTarefa,&melhorCustoDaTarefa,&segundoMelhorCustoDaTarefa,&melhorPosicaoDaTarefa) == FALSO) {
+                    free(sequenciaTemporaria);
+                    free(posicoesCandidatas);
+                    free(temposDeConclusaoCompactos);
+                    free(tarefaJaInserida);
+                    return FALSO;
+                }
+            }
+
+            if(encontrouMelhorPosicaoDaTarefa == VERDADEIRO) {
+                if(segundoMelhorCustoDaTarefa > melhorCustoDaTarefa) {
+                    arrependimentoDaTarefa = (Custo) (segundoMelhorCustoDaTarefa - melhorCustoDaTarefa);
+                }
+                else {
+                    arrependimentoDaTarefa = 0;
+                }
+
+                if(controllerHeuristicaMovimentoEhMelhor(melhorCustoDaTarefa,arrependimentoDaTarefa,melhorPosicaoDaTarefa,tarefaCandidata,encontrouMelhorMovimento,melhorCusto,melhorArrependimento,melhorPosicao,melhorTarefa) == VERDADEIRO) {
+                    melhorCusto = melhorCustoDaTarefa;
+                    melhorArrependimento = arrependimentoDaTarefa;
+                    melhorPosicao = melhorPosicaoDaTarefa;
                     melhorIdentificador = identificadorDaTarefa;
                     melhorTarefa = tarefaCandidata;
                     encontrouMelhorMovimento = VERDADEIRO;
