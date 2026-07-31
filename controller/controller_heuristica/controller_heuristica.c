@@ -8,6 +8,7 @@
 #define RAIO_DA_JANELA_V_SHAPED 40
 #define QUANTIDADE_MAXIMA_DE_TAREFAS_CANDIDATAS 2
 #define PESO_ARREPENDIMENTO_PERCENTUAL 20
+#define RAIO_DA_JANELA_CONCLUSAO_NA_DATA 30
 
 typedef struct TarefaParaInsercao {
     IdentificadorDeTarefa identificador;
@@ -568,12 +569,84 @@ static void controllerHeuristicaAdicionarJanelaVShaped(QuantidadeDeTarefas *posi
     }
 }
 
+static QuantidadeDeTarefas controllerHeuristicaEncontrarPosicaoPorConclusaoProximaDaData(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,const TarefaParaInsercao *tarefaNova,DataDeEntregaComum dataDeEntregaComum) {
+    QuantidadeDeTarefas posicao;
+    QuantidadeDeTarefas melhorPosicao;
+    IdentificadorDeTarefa identificadorDaTarefaAtual;
+    const Tarefa *tarefaAtual;
+    const Tarefa *tarefaInserida;
+    long long tempoAntesDaInsercao;
+    long long conclusaoDaTarefaInserida;
+    long long diferenca;
+    long long melhorDiferenca;
+
+    if(tarefasPorIdentificador == NULL) {
+        return 0;
+    }
+
+    if(sequenciaAtual == NULL && quantidadeAtual > 0) {
+        return 0;
+    }
+
+    if(tarefaNova == NULL) {
+        return 0;
+    }
+
+    if((*tarefaNova).identificador == 0) {
+        return 0;
+    }
+
+    tarefaInserida = tarefasPorIdentificador[(*tarefaNova).identificador];
+
+    if(tarefaInserida == NULL) {
+        return 0;
+    }
+
+    tempoAntesDaInsercao = 0;
+    melhorPosicao = 0;
+    melhorDiferenca = 0;
+
+    for(posicao = 0;posicao <= quantidadeAtual;posicao++) {
+        conclusaoDaTarefaInserida = tempoAntesDaInsercao + ((long long) (*tarefaInserida).tempoProcessamento);
+
+        if(conclusaoDaTarefaInserida >= ((long long) dataDeEntregaComum)) {
+            diferenca = conclusaoDaTarefaInserida - ((long long) dataDeEntregaComum);
+        }
+        else {
+            diferenca = ((long long) dataDeEntregaComum) - conclusaoDaTarefaInserida;
+        }
+
+        if(posicao == 0) {
+            melhorDiferenca = diferenca;
+            melhorPosicao = posicao;
+        }
+        else if(diferenca < melhorDiferenca) {
+            melhorDiferenca = diferenca;
+            melhorPosicao = posicao;
+        }
+
+        if(posicao < quantidadeAtual) {
+            identificadorDaTarefaAtual = sequenciaAtual[posicao];
+            tarefaAtual = tarefasPorIdentificador[identificadorDaTarefaAtual];
+
+            if(tarefaAtual == NULL) {
+                return melhorPosicao;
+            }
+
+            tempoAntesDaInsercao = tempoAntesDaInsercao + ((long long) (*tarefaAtual).tempoProcessamento);
+        }
+    }
+
+    return melhorPosicao;
+}
+
 static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **tarefasPorIdentificador,const IdentificadorDeTarefa *sequenciaAtual,QuantidadeDeTarefas quantidadeAtual,const TarefaParaInsercao *tarefaNova,DataDeEntregaComum dataDeEntregaComum,QuantidadeDeTarefas *posicoesCandidatas,QuantidadeDeTarefas *quantidadeDePosicoes) {
     QuantidadeDeTarefas posicao;
     QuantidadeDeTarefas passoGlobal;
     QuantidadeDeTarefas posicaoTemporal;
     QuantidadeDeTarefas posicaoPorRazaoAdiantamento;
     QuantidadeDeTarefas posicaoPorRazaoAtraso;
+    QuantidadeDeTarefas posicaoPorConclusaoNaData;
     InteiroPositivoDe32Bits alvoAntes;
     InteiroPositivoDe32Bits alvoNaData;
     InteiroPositivoDe32Bits alvoDepois;
@@ -634,6 +707,12 @@ static Boolean controllerHeuristicaMontarPosicoesCandidatas(const Tarefa **taref
 
     posicaoPorRazaoAtraso = controllerHeuristicaEncontrarPosicaoPorRazaoAtraso(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,tarefaNova);
     controllerHeuristicaAdicionarJanelaVShaped(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,posicaoPorRazaoAtraso);
+
+    posicaoPorConclusaoNaData = controllerHeuristicaEncontrarPosicaoPorConclusaoProximaDaData(tarefasPorIdentificador,sequenciaAtual,quantidadeAtual,tarefaNova,dataDeEntregaComum);
+
+    for(deslocamento = -RAIO_DA_JANELA_CONCLUSAO_NA_DATA;deslocamento <= RAIO_DA_JANELA_CONCLUSAO_NA_DATA;deslocamento++) {
+        controllerHeuristicaAdicionarPosicaoCandidata(posicoesCandidatas,quantidadeDePosicoes,quantidadeAtual,((int) posicaoPorConclusaoNaData) + deslocamento);
+    }
 
     if(dataDeEntregaComum > (*tarefaNova).tempoProcessamento) {
         alvoAntes = dataDeEntregaComum - (*tarefaNova).tempoProcessamento;
