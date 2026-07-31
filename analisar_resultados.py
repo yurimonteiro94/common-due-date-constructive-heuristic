@@ -67,27 +67,26 @@ def analisar_medias(linhas):
     return saida
 
 
-def analisar_comparacao(linhas):
+def comparar_com_coluna(linhas,nomeDaComparacao,colunaReferencia,colunaTipoReferencia,colunaGap):
     quantidadeComReferencia = 0
     quantidadeSemReferencia = 0
     quantidadeMelhor = 0
     quantidadeIgual = 0
     quantidadePior = 0
-    quantidadeOtimo = 0
-    quantidadeMelhorConhecida = 0
     gaps = []
+    distribuicaoTipos = {}
 
     for linha in linhas:
         custoHeuristica = converter_float(linha.get("custoHeuristica"))
-        custoReferencia = converter_float(linha.get("custoMelhorConhecido"))
-        gap = converter_float(linha.get("gapMelhorSolucaoConhecidaPercentual"))
-        tipo = str(linha.get("tipoMelhorConhecido", "")).strip()
+        custoReferencia = converter_float(linha.get(colunaReferencia))
+        gap = converter_float(linha.get(colunaGap))
+        tipo = str(linha.get(colunaTipoReferencia, "")).strip()
 
-        if(tipo == "otimo"):
-            quantidadeOtimo = quantidadeOtimo + 1
+        if(tipo != ""):
+            if(tipo not in distribuicaoTipos):
+                distribuicaoTipos[tipo] = 0
 
-        if(tipo == "melhor_conhecida"):
-            quantidadeMelhorConhecida = quantidadeMelhorConhecida + 1
+            distribuicaoTipos[tipo] = distribuicaoTipos[tipo] + 1
 
         if(custoHeuristica is None or custoReferencia is None):
             quantidadeSemReferencia = quantidadeSemReferencia + 1
@@ -110,13 +109,19 @@ def analisar_comparacao(linhas):
 
     saida = []
     saida.append("")
-    saida.append("COMPARACAO COM BENCHMARK")
+    saida.append(nomeDaComparacao)
     saida.append("")
     saida.append("Total de linhas: {}".format(len(linhas)))
     saida.append("Referencias numericas: {}".format(quantidadeComReferencia))
     saida.append("Sem referencia numerica: {}".format(quantidadeSemReferencia))
-    saida.append("Referencias do tipo otimo: {}".format(quantidadeOtimo))
-    saida.append("Referencias do tipo melhor_conhecida: {}".format(quantidadeMelhorConhecida))
+
+    if(distribuicaoTipos):
+        saida.append("")
+        saida.append("Distribuicao dos tipos de referencia:")
+
+        for tipo in sorted(distribuicaoTipos.keys()):
+            saida.append("{}: {}".format(tipo,distribuicaoTipos[tipo]))
+
     saida.append("")
     saida.append("Melhores que a referencia: {}".format(quantidadeMelhor))
     saida.append("Iguais a referencia: {}".format(quantidadeIgual))
@@ -147,7 +152,22 @@ def main():
     saida.append("")
 
     saida.extend(analisar_medias(linhasMedias))
-    saida.extend(analisar_comparacao(linhasComparacao))
+
+    saida.extend(comparar_com_coluna(
+        linhasComparacao,
+        "COMPARACAO COM MELHOR SOLUCAO CONHECIDA",
+        "custoMelhorConhecido",
+        "tipoMelhorConhecido",
+        "gapMelhorSolucaoConhecidaPercentual"
+    ))
+
+    saida.extend(comparar_com_coluna(
+        linhasComparacao,
+        "COMPARACAO COM SOLUCAO DOS AUTORES",
+        "custoAutores",
+        "tipoAutores",
+        "gapSolucaoAutoresPercentual"
+    ))
 
     texto = "\n".join(saida)
 
