@@ -242,9 +242,9 @@ int main(void) {
     InteiroPositivoDe16Bits quantidadeDeInstancias;
     InteiroPositivoDe16Bits identificadorDaInstancia;
 
-    nomesDosArquivos[0] = "instancias/sch10.txt";
-    nomesDosArquivos[1] = "instancias/sch20.txt";
-    nomesDosArquivos[2] = "instancias/sch50.txt";
+    nomesDosArquivos[0] = "sch10.txt";
+    nomesDosArquivos[1] = "sch20.txt";
+    nomesDosArquivos[2] = "sch50.txt";
 
     fatoresH[0] = FATOR_H_02;
     fatoresH[1] = FATOR_H_04;
