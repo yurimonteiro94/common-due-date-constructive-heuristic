@@ -250,11 +250,25 @@ int main(int quantidadeDeArgumentos,char *argumentos[]) {
         return 1;
     }
 
-    if(resultado.custoInicial != custoConstrutiva || resultado.custoFinal > resultado.custoAposBuscaHibrida) {
-        printf("Resultado inconsistente.\n");
+    if(resultado.custoInicial != custoConstrutiva) {
+        printf("Custo inicial interno diferente do custo construtivo calculado.\n");
+        printf("Custo inicial interno: %llu\n",(unsigned long long) resultado.custoInicial);
+        printf("Custo construtivo calculado: %llu\n",(unsigned long long) custoConstrutiva);
         liberarSolucao(&solucaoInversao);
         liberarSolucao(&solucaoConstrutiva);
         liberarInstancia(&instancia);
+
+        return 1;
+    }
+
+    if(resultado.custoFinal > resultado.custoAposBuscaHibrida) {
+        printf("A busca por inversao piorou a solucao hibrida.\n");
+        printf("Custo apos busca hibrida: %llu\n",(unsigned long long) resultado.custoAposBuscaHibrida);
+        printf("Custo final da inversao: %llu\n",(unsigned long long) resultado.custoFinal);
+        liberarSolucao(&solucaoInversao);
+        liberarSolucao(&solucaoConstrutiva);
+        liberarInstancia(&instancia);
+
         return 1;
     }
 

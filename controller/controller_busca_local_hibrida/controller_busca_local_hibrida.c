@@ -60,14 +60,18 @@ static Boolean copiarSolucao(const Solucao *origem,Solucao *destino) {
 
 static void acumularResultado(ResultadoBuscaLocalHibrida *resultado,const ResultadoBuscaLocal *resultadoDaEtapa) {
     (*resultado).quantidadeDeChamadasDeBuscaLocal++;
-    (*resultado).quantidadeTotalDeVizinhosAvaliados += resultadoDaEtapa->quantidadeDeVizinhosAvaliados;
-    (*resultado).quantidadeTotalDeIteracoes += resultadoDaEtapa->quantidadeDeIteracoes;
-    (*resultado).quantidadeTotalDeMelhoriasPorReinsercao += resultadoDaEtapa->quantidadeDeMelhoriasPorReinsercao;
-    (*resultado).quantidadeTotalDeMelhoriasPorTroca += resultadoDaEtapa->quantidadeDeMelhoriasPorTroca;
+    (*resultado).quantidadeTotalDeVizinhosAvaliados += (*resultadoDaEtapa).quantidadeDeVizinhosAvaliados;
+    (*resultado).quantidadeTotalDeIteracoes += (*resultadoDaEtapa).quantidadeDeIteracoes;
+    (*resultado).quantidadeTotalDeMelhoriasPorReinsercao += (*resultadoDaEtapa).quantidadeDeMelhoriasPorReinsercao;
+    (*resultado).quantidadeTotalDeMelhoriasPorTroca += (*resultadoDaEtapa).quantidadeDeMelhoriasPorTroca;
 }
 
-static Boolean executarPrimeiraMelhoria(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocalHibrida *resultado,QuantidadeDeTarefas raioDeReinsercao,QuantidadeDeTarefas raioDeTroca,Custo *custoFinal) {
+static Boolean executarPrimeiraMelhoria(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocalHibrida *resultado,QuantidadeDeTarefas raioDeReinsercao,QuantidadeDeTarefas raioDeTroca,Custo *custoInicial,Custo *custoFinal) {
     ResultadoBuscaLocal resultadoDaEtapa;
+
+    if(custoFinal == NULL) {
+        return FALSO;
+    }
 
     resultadoDaEtapa = criarResultadoBuscaLocalVazio();
 
@@ -76,6 +80,11 @@ static Boolean executarPrimeiraMelhoria(const Instancia *instancia,FatorH fatorH
     }
 
     acumularResultado(resultado,&resultadoDaEtapa);
+
+    if(custoInicial != NULL) {
+        (*custoInicial) = resultadoDaEtapa.custoInicial;
+    }
+
     (*custoFinal) = resultadoDaEtapa.custoFinal;
 
     return VERDADEIRO;
@@ -83,6 +92,10 @@ static Boolean executarPrimeiraMelhoria(const Instancia *instancia,FatorH fatorH
 
 static Boolean executarMelhorMelhoria(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocalHibrida *resultado,QuantidadeDeTarefas raioDeReinsercao,QuantidadeDeTarefas raioDeTroca,Custo *custoFinal) {
     ResultadoBuscaLocal resultadoDaEtapa;
+
+    if(custoFinal == NULL) {
+        return FALSO;
+    }
 
     resultadoDaEtapa = criarResultadoBuscaLocalVazio();
 
@@ -127,15 +140,13 @@ Boolean controllerBuscaLocalHibridaMelhorarSolucao(const Instancia *instancia,Fa
     solucaoFinalDaTrajetoriaB = criarSolucaoVazia();
     custoTemporario = 0;
 
-    if(executarPrimeiraMelhoria(instancia,fatorH,solucaoInicial,&solucaoPrimeiraIsolada,resultado,raioDeReinsercao,raioDeTroca,&resultado->custoPrimeiraMelhoriaIsolada) == FALSO) {
+    if(executarPrimeiraMelhoria(instancia,fatorH,solucaoInicial,&solucaoPrimeiraIsolada,resultado,raioDeReinsercao,raioDeTroca,&(*resultado).custoInicial,&(*resultado).custoPrimeiraMelhoriaIsolada) == FALSO) {
         liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
 
         return FALSO;
     }
 
-    resultado->custoInicial = resultado->custoPrimeiraMelhoriaIsolada;
-
-    if(executarMelhorMelhoria(instancia,fatorH,solucaoInicial,&solucaoMelhorIsolada,resultado,raioDeReinsercao,raioDeTroca,&resultado->custoMelhorMelhoriaIsolada) == FALSO) {
+    if(executarMelhorMelhoria(instancia,fatorH,solucaoInicial,&solucaoMelhorIsolada,resultado,raioDeReinsercao,raioDeTroca,&(*resultado).custoMelhorMelhoriaIsolada) == FALSO) {
         liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
 
         return FALSO;
@@ -147,33 +158,33 @@ Boolean controllerBuscaLocalHibridaMelhorarSolucao(const Instancia *instancia,Fa
         return FALSO;
     }
 
-    if(executarPrimeiraMelhoria(instancia,fatorH,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,resultado,raioDeReinsercao,raioDeTroca,&resultado->custoTrajetoriaPrimeiraMelhorPrimeira) == FALSO) {
+    if(executarPrimeiraMelhoria(instancia,fatorH,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,resultado,raioDeReinsercao,raioDeTroca,NULL,&(*resultado).custoTrajetoriaPrimeiraMelhorPrimeira) == FALSO) {
         liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
 
         return FALSO;
     }
 
-    if(executarPrimeiraMelhoria(instancia,fatorH,&solucaoMelhorIsolada,&solucaoAposPrimeiraDaTrajetoriaB,resultado,raioDeReinsercao,raioDeTroca,&custoTemporario) == FALSO) {
+    if(executarPrimeiraMelhoria(instancia,fatorH,&solucaoMelhorIsolada,&solucaoAposPrimeiraDaTrajetoriaB,resultado,raioDeReinsercao,raioDeTroca,NULL,&custoTemporario) == FALSO) {
         liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
 
         return FALSO;
     }
 
-    if(executarMelhorMelhoria(instancia,fatorH,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB,resultado,raioDeReinsercao,raioDeTroca,&resultado->custoTrajetoriaMelhorPrimeiraMelhor) == FALSO) {
+    if(executarMelhorMelhoria(instancia,fatorH,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB,resultado,raioDeReinsercao,raioDeTroca,&(*resultado).custoTrajetoriaMelhorPrimeiraMelhor) == FALSO) {
         liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
 
         return FALSO;
     }
 
-    if(resultado->custoTrajetoriaPrimeiraMelhorPrimeira <= resultado->custoTrajetoriaMelhorPrimeiraMelhor) {
+    if((*resultado).custoTrajetoriaPrimeiraMelhorPrimeira <= (*resultado).custoTrajetoriaMelhorPrimeiraMelhor) {
         if(copiarSolucao(&solucaoFinalDaTrajetoriaA,solucaoFinal) == FALSO) {
             liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
 
             return FALSO;
         }
 
-        resultado->custoFinal = resultado->custoTrajetoriaPrimeiraMelhorPrimeira;
-        resultado->trajetoriaSelecionada = TRAJETORIA_HIBRIDA_PRIMEIRA_MELHOR_PRIMEIRA;
+        (*resultado).custoFinal = (*resultado).custoTrajetoriaPrimeiraMelhorPrimeira;
+        (*resultado).trajetoriaSelecionada = TRAJETORIA_HIBRIDA_PRIMEIRA_MELHOR_PRIMEIRA;
     }
     else {
         if(copiarSolucao(&solucaoFinalDaTrajetoriaB,solucaoFinal) == FALSO) {
@@ -182,8 +193,8 @@ Boolean controllerBuscaLocalHibridaMelhorarSolucao(const Instancia *instancia,Fa
             return FALSO;
         }
 
-        resultado->custoFinal = resultado->custoTrajetoriaMelhorPrimeiraMelhor;
-        resultado->trajetoriaSelecionada = TRAJETORIA_HIBRIDA_MELHOR_PRIMEIRA_MELHOR;
+        (*resultado).custoFinal = (*resultado).custoTrajetoriaMelhorPrimeiraMelhor;
+        (*resultado).trajetoriaSelecionada = TRAJETORIA_HIBRIDA_MELHOR_PRIMEIRA_MELHOR;
     }
 
     liberarSolucoes(&solucaoPrimeiraIsolada,&solucaoMelhorIsolada,&solucaoAposMelhorDaTrajetoriaA,&solucaoFinalDaTrajetoriaA,&solucaoAposPrimeiraDaTrajetoriaB,&solucaoFinalDaTrajetoriaB);
