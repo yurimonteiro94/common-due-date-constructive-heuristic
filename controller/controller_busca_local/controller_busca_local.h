@@ -5,6 +5,8 @@
 #include "../../model/entidades/solucao/solucao.h"
 #include "../../services/constantes/constantes.h"
 
+#define RAIO_REINSERCAO_LIMITADA_PADRAO 12
+
 typedef struct ResultadoBuscaLocal {
     Custo custoInicial;
     Custo custoFinal;
@@ -14,5 +16,6 @@ typedef struct ResultadoBuscaLocal {
 
 ResultadoBuscaLocal criarResultadoBuscaLocalVazio(void);
 Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal);
+Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercaoLimitada(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal,QuantidadeDeTarefas raioDeReinsercao);
 
 #endif

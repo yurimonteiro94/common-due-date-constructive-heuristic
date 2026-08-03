@@ -1,8 +1,7 @@
 #include "controller_busca_local.h"
 
-#include "../../services/gerenciador_de_custos/gerenciador_de_custos.h"
-
 #include <stddef.h>
+#include <stdlib.h>
 
 static Boolean controllerBuscaLocalParametrosSaoValidos(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal) {
     if(instanciaEhValida(instancia) == FALSO) {
@@ -62,11 +61,55 @@ static Boolean controllerBuscaLocalCopiarSolucao(const Solucao *origem,Solucao *
     return VERDADEIRO;
 }
 
+static Boolean controllerBuscaLocalCopiarConteudoDaSolucao(const Solucao *origem,Solucao *destino) {
+    QuantidadeDeTarefas posicao;
+
+    if(origem == NULL) {
+        return FALSO;
+    }
+
+    if(destino == NULL) {
+        return FALSO;
+    }
+
+    if((*origem).sequenciaDeTarefas == NULL) {
+        return FALSO;
+    }
+
+    if((*destino).sequenciaDeTarefas == NULL) {
+        return FALSO;
+    }
+
+    if((*origem).quantidadeDeTarefas == 0) {
+        return FALSO;
+    }
+
+    if((*origem).quantidadeDeTarefas != (*destino).quantidadeDeTarefas) {
+        return FALSO;
+    }
+
+    for(posicao = 0;posicao < (*origem).quantidadeDeTarefas;posicao++) {
+        (*destino).sequenciaDeTarefas[posicao] = (*origem).sequenciaDeTarefas[posicao];
+    }
+
+    (*destino).quantidadeDeTarefasAlocadas = (*origem).quantidadeDeTarefasAlocadas;
+
+    return VERDADEIRO;
+}
+
 static Boolean controllerBuscaLocalReinserirTarefa(Solucao *solucao,QuantidadeDeTarefas posicaoOrigem,QuantidadeDeTarefas posicaoDestino) {
     IdentificadorDeTarefa tarefaMovida;
     QuantidadeDeTarefas posicao;
 
-    if(solucaoEhValida(solucao) == FALSO) {
+    if(solucao == NULL) {
+        return FALSO;
+    }
+
+    if((*solucao).sequenciaDeTarefas == NULL) {
+        return FALSO;
+    }
+
+    if((*solucao).quantidadeDeTarefas == 0) {
         return FALSO;
     }
 
@@ -100,18 +143,165 @@ static Boolean controllerBuscaLocalReinserirTarefa(Solucao *solucao,QuantidadeDe
     return VERDADEIRO;
 }
 
-static Boolean controllerBuscaLocalAvaliarSolucao(const Instancia *instancia,const Solucao *solucao,DataDeEntregaComum dataDeEntregaComum,Custo *custo) {
+static Boolean controllerBuscaLocalMontarMapaDeTarefas(const Instancia *instancia,const Tarefa **tarefasPorIdentificador) {
+    QuantidadeDeTarefas indiceDaTarefa;
+    IdentificadorDeTarefa identificadorDaTarefa;
+
+    if(instancia == NULL) {
+        return FALSO;
+    }
+
+    if(tarefasPorIdentificador == NULL) {
+        return FALSO;
+    }
+
+    for(indiceDaTarefa = 0;indiceDaTarefa <= (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
+        tarefasPorIdentificador[indiceDaTarefa] = NULL;
+    }
+
+    for(indiceDaTarefa = 0;indiceDaTarefa < (*instancia).quantidadeDeTarefas;indiceDaTarefa++) {
+        identificadorDaTarefa = (*instancia).tarefas[indiceDaTarefa].identificador;
+
+        if(identificadorDaTarefa == 0) {
+            return FALSO;
+        }
+
+        if(identificadorDaTarefa > (*instancia).quantidadeDeTarefas) {
+            return FALSO;
+        }
+
+        tarefasPorIdentificador[identificadorDaTarefa] = &((*instancia).tarefas[indiceDaTarefa]);
+    }
+
+    for(identificadorDaTarefa = 1;identificadorDaTarefa <= (*instancia).quantidadeDeTarefas;identificadorDaTarefa++) {
+        if(tarefasPorIdentificador[identificadorDaTarefa] == NULL) {
+            return FALSO;
+        }
+    }
+
+    return VERDADEIRO;
+}
+
+static Boolean controllerBuscaLocalAvaliarSolucaoRapida(const Solucao *solucao,const Tarefa **tarefasPorIdentificador,DataDeEntregaComum dataDeEntregaComum,InteiroPositivoDe32Bits *temposPrefixados,Custo *custo) {
+    QuantidadeDeTarefas posicao;
+    QuantidadeDeTarefas posicaoReversa;
+    IdentificadorDeTarefa identificadorDaTarefa;
+    const Tarefa *tarefa;
+    InteiroPositivoDe32Bits somaDosTempos;
+    InteiroPositivoDe32Bits instanteInicial;
+    InteiroPositivoDe32Bits instanteAtual;
+    InteiroPositivoDe32Bits adiantamento;
+    InteiroPositivoDe32Bits atraso;
+    long long inclinacao;
+    Custo custoTotal;
+
+    if(solucao == NULL) {
+        return FALSO;
+    }
+
+    if(tarefasPorIdentificador == NULL) {
+        return FALSO;
+    }
+
+    if(temposPrefixados == NULL) {
+        return FALSO;
+    }
+
     if(custo == NULL) {
         return FALSO;
     }
 
-    (*custo) = 0;
-
-    if(gerenciadorDeCustosCalcularCustoDaSolucao(instancia,solucao,dataDeEntregaComum,custo) == FALSO) {
+    if((*solucao).sequenciaDeTarefas == NULL) {
         return FALSO;
     }
 
+    if((*solucao).quantidadeDeTarefas == 0) {
+        return FALSO;
+    }
+
+    somaDosTempos = 0;
+    inclinacao = 0;
+
+    for(posicao = 0;posicao < (*solucao).quantidadeDeTarefas;posicao++) {
+        identificadorDaTarefa = (*solucao).sequenciaDeTarefas[posicao];
+
+        if(identificadorDaTarefa == 0 || identificadorDaTarefa > (*solucao).quantidadeDeTarefas) {
+            return FALSO;
+        }
+
+        tarefa = tarefasPorIdentificador[identificadorDaTarefa];
+
+        if(tarefa == NULL) {
+            return FALSO;
+        }
+
+        somaDosTempos += (*tarefa).tempoProcessamento;
+        temposPrefixados[posicao] = somaDosTempos;
+        inclinacao -= (long long) (*tarefa).penalidadeAdiantamento;
+    }
+
+    instanteInicial = 0;
+
+    for(posicaoReversa = (*solucao).quantidadeDeTarefas;posicaoReversa > 0;posicaoReversa--) {
+        posicao = (QuantidadeDeTarefas) (posicaoReversa - 1);
+        identificadorDaTarefa = (*solucao).sequenciaDeTarefas[posicao];
+        tarefa = tarefasPorIdentificador[identificadorDaTarefa];
+        inclinacao += (long long) (*tarefa).penalidadeAdiantamento + (long long) (*tarefa).penalidadeAtraso;
+
+        if(inclinacao >= 0) {
+            if(temposPrefixados[posicao] <= dataDeEntregaComum) {
+                instanteInicial = dataDeEntregaComum - temposPrefixados[posicao];
+            }
+            else {
+                instanteInicial = 0;
+            }
+
+            break;
+        }
+    }
+
+    instanteAtual = instanteInicial;
+    custoTotal = 0;
+
+    for(posicao = 0;posicao < (*solucao).quantidadeDeTarefas;posicao++) {
+        identificadorDaTarefa = (*solucao).sequenciaDeTarefas[posicao];
+        tarefa = tarefasPorIdentificador[identificadorDaTarefa];
+        instanteAtual += (*tarefa).tempoProcessamento;
+
+        if(instanteAtual < dataDeEntregaComum) {
+            adiantamento = dataDeEntregaComum - instanteAtual;
+            custoTotal += ((Custo) (*tarefa).penalidadeAdiantamento) * ((Custo) adiantamento);
+        }
+        else if(instanteAtual > dataDeEntregaComum) {
+            atraso = instanteAtual - dataDeEntregaComum;
+            custoTotal += ((Custo) (*tarefa).penalidadeAtraso) * ((Custo) atraso);
+        }
+    }
+
+    (*custo) = custoTotal;
+
     return VERDADEIRO;
+}
+
+static Boolean controllerBuscaLocalDestinoPertenceAoRaio(QuantidadeDeTarefas posicaoOrigem,QuantidadeDeTarefas posicaoDestino,QuantidadeDeTarefas raioDeReinsercao) {
+    QuantidadeDeTarefas distancia;
+
+    if(posicaoOrigem == posicaoDestino) {
+        return FALSO;
+    }
+
+    if(posicaoDestino > posicaoOrigem) {
+        distancia = posicaoDestino - posicaoOrigem;
+    }
+    else {
+        distancia = posicaoOrigem - posicaoDestino;
+    }
+
+    if(distancia <= raioDeReinsercao) {
+        return VERDADEIRO;
+    }
+
+    return FALSO;
 }
 
 ResultadoBuscaLocal criarResultadoBuscaLocalVazio(void) {
@@ -125,7 +315,7 @@ ResultadoBuscaLocal criarResultadoBuscaLocalVazio(void) {
     return resultadoBuscaLocal;
 }
 
-Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal) {
+static Boolean controllerBuscaLocalExecutarReinsercao(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal,QuantidadeDeTarefas raioDeReinsercao) {
     Solucao solucaoCorrente;
     Solucao solucaoCandidata;
     DataDeEntregaComum dataDeEntregaComum;
@@ -133,36 +323,89 @@ Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instan
     Custo custoCandidato;
     QuantidadeDeTarefas posicaoOrigem;
     QuantidadeDeTarefas posicaoDestino;
+    QuantidadeDeTarefas raioEfetivo;
     Boolean houveMelhoria;
+    const Tarefa **tarefasPorIdentificador;
+    InteiroPositivoDe32Bits *temposPrefixados;
 
     if(controllerBuscaLocalParametrosSaoValidos(instancia,fatorH,solucaoInicial,solucaoFinal,resultadoBuscaLocal) == FALSO) {
         return FALSO;
     }
 
-    (*resultadoBuscaLocal) = criarResultadoBuscaLocalVazio();
+    if(raioDeReinsercao == 0) {
+        return FALSO;
+    }
 
+    (*resultadoBuscaLocal) = criarResultadoBuscaLocalVazio();
     solucaoCorrente = criarSolucaoVazia();
+    solucaoCandidata = criarSolucaoVazia();
+    tarefasPorIdentificador = NULL;
+    temposPrefixados = NULL;
 
     if(controllerBuscaLocalCopiarSolucao(solucaoInicial,&solucaoCorrente) == FALSO) {
+        return FALSO;
+    }
+
+    if(controllerBuscaLocalCopiarSolucao(solucaoInicial,&solucaoCandidata) == FALSO) {
+        liberarSolucao(&solucaoCorrente);
+
         return FALSO;
     }
 
     dataDeEntregaComum = instanciaCalcularDataDeEntregaComum(instancia,fatorH);
 
     if(dataDeEntregaComum == 0) {
+        liberarSolucao(&solucaoCandidata);
         liberarSolucao(&solucaoCorrente);
 
         return FALSO;
     }
 
-    if(controllerBuscaLocalAvaliarSolucao(instancia,&solucaoCorrente,dataDeEntregaComum,&custoCorrente) == FALSO) {
+    tarefasPorIdentificador = (const Tarefa **) malloc(sizeof(Tarefa *) * ((size_t) solucaoCorrente.quantidadeDeTarefas + 1u));
+
+    if(tarefasPorIdentificador == NULL) {
+        liberarSolucao(&solucaoCandidata);
         liberarSolucao(&solucaoCorrente);
 
         return FALSO;
+    }
+
+    temposPrefixados = (InteiroPositivoDe32Bits *) malloc(sizeof(InteiroPositivoDe32Bits) * solucaoCorrente.quantidadeDeTarefas);
+
+    if(temposPrefixados == NULL) {
+        free(tarefasPorIdentificador);
+        liberarSolucao(&solucaoCandidata);
+        liberarSolucao(&solucaoCorrente);
+
+        return FALSO;
+    }
+
+    if(controllerBuscaLocalMontarMapaDeTarefas(instancia,tarefasPorIdentificador) == FALSO) {
+        free(temposPrefixados);
+        free(tarefasPorIdentificador);
+        liberarSolucao(&solucaoCandidata);
+        liberarSolucao(&solucaoCorrente);
+
+        return FALSO;
+    }
+
+    if(controllerBuscaLocalAvaliarSolucaoRapida(&solucaoCorrente,tarefasPorIdentificador,dataDeEntregaComum,temposPrefixados,&custoCorrente) == FALSO) {
+        free(temposPrefixados);
+        free(tarefasPorIdentificador);
+        liberarSolucao(&solucaoCandidata);
+        liberarSolucao(&solucaoCorrente);
+
+        return FALSO;
+    }
+
+    if(raioDeReinsercao >= solucaoCorrente.quantidadeDeTarefas) {
+        raioEfetivo = (QuantidadeDeTarefas) (solucaoCorrente.quantidadeDeTarefas - 1);
+    }
+    else {
+        raioEfetivo = raioDeReinsercao;
     }
 
     (*resultadoBuscaLocal).custoInicial = custoCorrente;
-
     houveMelhoria = VERDADEIRO;
 
     while(houveMelhoria == VERDADEIRO) {
@@ -171,23 +414,28 @@ Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instan
 
         for(posicaoOrigem = 0;posicaoOrigem < solucaoCorrente.quantidadeDeTarefas && houveMelhoria == FALSO;posicaoOrigem++) {
             for(posicaoDestino = 0;posicaoDestino < solucaoCorrente.quantidadeDeTarefas && houveMelhoria == FALSO;posicaoDestino++) {
-                if(posicaoOrigem != posicaoDestino) {
-                    solucaoCandidata = criarSolucaoVazia();
-
-                    if(controllerBuscaLocalCopiarSolucao(&solucaoCorrente,&solucaoCandidata) == FALSO) {
-                        liberarSolucao(&solucaoCorrente);
-
-                        return FALSO;
-                    }
-
-                    if(controllerBuscaLocalReinserirTarefa(&solucaoCandidata,posicaoOrigem,posicaoDestino) == FALSO) {
+                if(controllerBuscaLocalDestinoPertenceAoRaio(posicaoOrigem,posicaoDestino,raioEfetivo) == VERDADEIRO) {
+                    if(controllerBuscaLocalCopiarConteudoDaSolucao(&solucaoCorrente,&solucaoCandidata) == FALSO) {
+                        free(temposPrefixados);
+                        free(tarefasPorIdentificador);
                         liberarSolucao(&solucaoCandidata);
                         liberarSolucao(&solucaoCorrente);
 
                         return FALSO;
                     }
 
-                    if(controllerBuscaLocalAvaliarSolucao(instancia,&solucaoCandidata,dataDeEntregaComum,&custoCandidato) == FALSO) {
+                    if(controllerBuscaLocalReinserirTarefa(&solucaoCandidata,posicaoOrigem,posicaoDestino) == FALSO) {
+                        free(temposPrefixados);
+                        free(tarefasPorIdentificador);
+                        liberarSolucao(&solucaoCandidata);
+                        liberarSolucao(&solucaoCorrente);
+
+                        return FALSO;
+                    }
+
+                    if(controllerBuscaLocalAvaliarSolucaoRapida(&solucaoCandidata,tarefasPorIdentificador,dataDeEntregaComum,temposPrefixados,&custoCandidato) == FALSO) {
+                        free(temposPrefixados);
+                        free(tarefasPorIdentificador);
                         liberarSolucao(&solucaoCandidata);
                         liberarSolucao(&solucaoCorrente);
 
@@ -197,13 +445,17 @@ Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instan
                     (*resultadoBuscaLocal).quantidadeDeVizinhosAvaliados++;
 
                     if(custoCandidato < custoCorrente) {
-                        liberarSolucao(&solucaoCorrente);
-                        solucaoCorrente = solucaoCandidata;
+                        if(controllerBuscaLocalCopiarConteudoDaSolucao(&solucaoCandidata,&solucaoCorrente) == FALSO) {
+                            free(temposPrefixados);
+                            free(tarefasPorIdentificador);
+                            liberarSolucao(&solucaoCandidata);
+                            liberarSolucao(&solucaoCorrente);
+
+                            return FALSO;
+                        }
+
                         custoCorrente = custoCandidato;
                         houveMelhoria = VERDADEIRO;
-                    }
-                    else {
-                        liberarSolucao(&solucaoCandidata);
                     }
                 }
             }
@@ -213,12 +465,34 @@ Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instan
     (*resultadoBuscaLocal).custoFinal = custoCorrente;
 
     if(controllerBuscaLocalCopiarSolucao(&solucaoCorrente,solucaoFinal) == FALSO) {
+        free(temposPrefixados);
+        free(tarefasPorIdentificador);
+        liberarSolucao(&solucaoCandidata);
         liberarSolucao(&solucaoCorrente);
 
         return FALSO;
     }
 
+    free(temposPrefixados);
+    free(tarefasPorIdentificador);
+    liberarSolucao(&solucaoCandidata);
     liberarSolucao(&solucaoCorrente);
 
     return VERDADEIRO;
+}
+
+Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercao(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal) {
+    if(solucaoInicial == NULL) {
+        return FALSO;
+    }
+
+    if((*solucaoInicial).quantidadeDeTarefas == 0) {
+        return FALSO;
+    }
+
+    return controllerBuscaLocalExecutarReinsercao(instancia,fatorH,solucaoInicial,solucaoFinal,resultadoBuscaLocal,(QuantidadeDeTarefas) ((*solucaoInicial).quantidadeDeTarefas - 1));
+}
+
+Boolean controllerBuscaLocalMelhorarSolucaoPorReinsercaoLimitada(const Instancia *instancia,FatorH fatorH,const Solucao *solucaoInicial,Solucao *solucaoFinal,ResultadoBuscaLocal *resultadoBuscaLocal,QuantidadeDeTarefas raioDeReinsercao) {
+    return controllerBuscaLocalExecutarReinsercao(instancia,fatorH,solucaoInicial,solucaoFinal,resultadoBuscaLocal,raioDeReinsercao);
 }

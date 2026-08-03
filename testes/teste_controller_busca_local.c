@@ -67,15 +67,80 @@ static Boolean testeBuscaLocalMontarSolucaoInicial(Solucao *solucao) {
     return VERDADEIRO;
 }
 
+static Boolean testeBuscaLocalExecutarEValidar(const char *nomeDoTeste,const Instancia *instancia,const Solucao *solucaoInicial,FatorH fatorH,QuantidadeDeTarefas raio,Boolean usarRaioLimitado) {
+    Solucao solucaoFinal;
+    ResultadoBuscaLocal resultadoBuscaLocal;
+    DataDeEntregaComum dataDeEntregaComum;
+    Custo custoVerificado;
+    Boolean resultadoDaExecucao;
+
+    solucaoFinal = criarSolucaoVazia();
+    resultadoBuscaLocal = criarResultadoBuscaLocalVazio();
+    custoVerificado = 0;
+
+    if(usarRaioLimitado == VERDADEIRO) {
+        resultadoDaExecucao = controllerBuscaLocalMelhorarSolucaoPorReinsercaoLimitada(instancia,fatorH,solucaoInicial,&solucaoFinal,&resultadoBuscaLocal,raio);
+    }
+    else {
+        resultadoDaExecucao = controllerBuscaLocalMelhorarSolucaoPorReinsercao(instancia,fatorH,solucaoInicial,&solucaoFinal,&resultadoBuscaLocal);
+    }
+
+    if(resultadoDaExecucao == FALSO) {
+        printf("Falha ao executar %s.\n",nomeDoTeste);
+        liberarSolucao(&solucaoFinal);
+
+        return FALSO;
+    }
+
+    if(solucaoEhValida(&solucaoFinal) == FALSO) {
+        printf("Solucao final invalida em %s.\n",nomeDoTeste);
+        liberarSolucao(&solucaoFinal);
+
+        return FALSO;
+    }
+
+    if(resultadoBuscaLocal.custoFinal > resultadoBuscaLocal.custoInicial) {
+        printf("Busca local piorou a solucao em %s.\n",nomeDoTeste);
+        liberarSolucao(&solucaoFinal);
+
+        return FALSO;
+    }
+
+    dataDeEntregaComum = instanciaCalcularDataDeEntregaComum(instancia,fatorH);
+
+    if(gerenciadorDeCustosCalcularCustoDaSolucao(instancia,&solucaoFinal,dataDeEntregaComum,&custoVerificado) == FALSO) {
+        printf("Nao foi possivel verificar custo em %s.\n",nomeDoTeste);
+        liberarSolucao(&solucaoFinal);
+
+        return FALSO;
+    }
+
+    if(custoVerificado != resultadoBuscaLocal.custoFinal) {
+        printf("Custo verificado diferente em %s.\n",nomeDoTeste);
+        printf("Custo da busca local: %llu\n",(unsigned long long) resultadoBuscaLocal.custoFinal);
+        printf("Custo verificado: %llu\n",(unsigned long long) custoVerificado);
+        liberarSolucao(&solucaoFinal);
+
+        return FALSO;
+    }
+
+    printf("%s aprovado.\n",nomeDoTeste);
+    printf("Custo inicial: %llu\n",(unsigned long long) resultadoBuscaLocal.custoInicial);
+    printf("Custo final: %llu\n",(unsigned long long) resultadoBuscaLocal.custoFinal);
+    printf("Iteracoes: %u\n",(unsigned int) resultadoBuscaLocal.quantidadeDeIteracoes);
+    printf("Vizinhos avaliados: %u\n",(unsigned int) resultadoBuscaLocal.quantidadeDeVizinhosAvaliados);
+
+    liberarSolucao(&solucaoFinal);
+
+    return VERDADEIRO;
+}
+
 int main(void) {
     Instancia instancia;
     Solucao solucaoInicial;
-    Solucao solucaoFinal;
-    ResultadoBuscaLocal resultadoBuscaLocal;
 
     instancia = criarInstanciaVazia();
     solucaoInicial = criarSolucaoVazia();
-    solucaoFinal = criarSolucaoVazia();
 
     if(testeBuscaLocalMontarInstancia(&instancia) == FALSO) {
         printf("Falha ao montar instancia.\n");
@@ -92,40 +157,22 @@ int main(void) {
         return 1;
     }
 
-    if(controllerBuscaLocalMelhorarSolucaoPorReinsercao(&instancia,FATOR_H_06,&solucaoInicial,&solucaoFinal,&resultadoBuscaLocal) == FALSO) {
-        printf("Falha ao executar busca local.\n");
-        liberarSolucao(&solucaoFinal);
+    if(testeBuscaLocalExecutarEValidar("Reinsercao completa",&instancia,&solucaoInicial,FATOR_H_06,0,FALSO) == FALSO) {
         liberarSolucao(&solucaoInicial);
         liberarInstancia(&instancia);
 
         return 1;
     }
 
-    if(solucaoEhValida(&solucaoFinal) == FALSO) {
-        printf("Solucao final invalida.\n");
-        liberarSolucao(&solucaoFinal);
+    if(testeBuscaLocalExecutarEValidar("Reinsercao limitada",&instancia,&solucaoInicial,FATOR_H_06,3,VERDADEIRO) == FALSO) {
         liberarSolucao(&solucaoInicial);
         liberarInstancia(&instancia);
 
         return 1;
     }
 
-    if(resultadoBuscaLocal.custoFinal > resultadoBuscaLocal.custoInicial) {
-        printf("Busca local piorou a solucao.\n");
-        liberarSolucao(&solucaoFinal);
-        liberarSolucao(&solucaoInicial);
-        liberarInstancia(&instancia);
+    printf("Teste de busca local finalizado com sucesso.\n");
 
-        return 1;
-    }
-
-    printf("Teste de busca local aprovado.\n");
-    printf("Custo inicial: %llu\n",(unsigned long long) resultadoBuscaLocal.custoInicial);
-    printf("Custo final: %llu\n",(unsigned long long) resultadoBuscaLocal.custoFinal);
-    printf("Iteracoes: %u\n",(unsigned int) resultadoBuscaLocal.quantidadeDeIteracoes);
-    printf("Vizinhos avaliados: %u\n",(unsigned int) resultadoBuscaLocal.quantidadeDeVizinhosAvaliados);
-
-    liberarSolucao(&solucaoFinal);
     liberarSolucao(&solucaoInicial);
     liberarInstancia(&instancia);
 
