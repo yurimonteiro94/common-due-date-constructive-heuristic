@@ -14,27 +14,37 @@ ARQUIVOS_OBRIGATORIOS = [
     "controller/controller_busca_local_vshape/controller_busca_local_vshape.h",
     "controller/controller_busca_local_melhor_melhoria/controller_busca_local_melhor_melhoria.c",
     "controller/controller_busca_local_melhor_melhoria/controller_busca_local_melhor_melhoria.h",
+    "controller/controller_busca_local_hibrida/controller_busca_local_hibrida.c",
+    "controller/controller_busca_local_hibrida/controller_busca_local_hibrida.h",
+    "model/entidades/resultado_busca_local_hibrida/resultado_busca_local_hibrida.c",
+    "model/entidades/resultado_busca_local_hibrida/resultado_busca_local_hibrida.h",
     "testes/teste_controller_busca_local.c",
     "testes/teste_busca_local_composta.c",
     "testes/teste_controller_busca_local_estrutural.c",
     "testes/teste_controller_busca_local_vshape.c",
     "testes/teste_controller_busca_local_melhor_melhoria.c",
+    "testes/teste_controller_busca_local_hibrida.c",
     "testes/experimento_busca_local_composta.c",
     "testes/experimento_busca_local_estrutural.c",
     "testes/experimento_busca_local_vshape.c",
     "testes/experimento_busca_local_melhor_melhoria.c",
+    "testes/experimento_busca_local_hibrida.c",
     "testes/executar_teste_controller_busca_local.bat",
     "testes/executar_teste_busca_local_composta.bat",
     "testes/executar_teste_controller_busca_local_estrutural.bat",
     "testes/executar_teste_controller_busca_local_vshape.bat",
     "testes/executar_teste_controller_busca_local_melhor_melhoria.bat",
+    "testes/executar_teste_controller_busca_local_hibrida.bat",
     "testes/executar_experimento_busca_local_melhor_melhoria_paralelo.bat",
     "testes/executar_experimento_busca_local_melhor_melhoria_paralelo.ps1",
+    "testes/executar_experimento_busca_local_hibrida_paralelo.bat",
+    "testes/executar_experimento_busca_local_hibrida_paralelo.ps1",
     "analisar_busca_local_adaptativa.py",
     "analisar_busca_local_composta.py",
     "analisar_busca_local_estrutural.py",
     "analisar_busca_local_vshape.py",
-    "analisar_busca_local_melhor_melhoria.py"
+    "analisar_busca_local_melhor_melhoria.py",
+    "analisar_busca_local_hibrida.py"
 ]
 
 EXTENSOES_DE_TEXTO = {".c",".h",".py",".bat",".ps1",".md"}
@@ -85,8 +95,7 @@ def verificar_arquivos_suspeitos():
             nome_em_minusculas = nome_do_arquivo.lower()
 
             if nome_em_minusculas in nomes_suspeitos or nome_em_minusculas.startswith("nulcd"):
-                caminho = os.path.join(raiz,nome_do_arquivo)
-                encontrados.append(caminho)
+                encontrados.append(os.path.join(raiz,nome_do_arquivo))
 
     if len(encontrados) == 0:
         print("[OK] Nenhum arquivo suspeito encontrado.")
@@ -112,8 +121,7 @@ def verificar_sintaxe_python():
         print("[ERRO] Nenhum arquivo Python encontrado.")
         return 1
 
-    comando = [sys.executable,"-m","py_compile"] + arquivos_python
-    resultado = subprocess.run(comando,capture_output=True,text=True)
+    resultado = subprocess.run([sys.executable,"-m","py_compile"] + arquivos_python,capture_output=True,text=True)
 
     if resultado.returncode != 0:
         print("[ERRO] Falha de sintaxe Python.")
@@ -130,11 +138,7 @@ def verificar_git():
     print("Estado do Git")
     print("-------------")
 
-    resultado = subprocess.run(
-        ["git","status","--short"],
-        capture_output=True,
-        text=True
-    )
+    resultado = subprocess.run(["git","status","--short"],capture_output=True,text=True)
 
     if resultado.returncode != 0:
         print("[ERRO] Nao foi possivel consultar o Git.")

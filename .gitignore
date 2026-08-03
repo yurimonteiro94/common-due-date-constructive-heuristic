@@ -13,3 +13,4 @@ resultados/*
 .vscode/
 .idea/
 !benchmarks/*.csv
+__pycache__/
