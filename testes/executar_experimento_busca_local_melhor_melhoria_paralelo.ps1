@@ -62,11 +62,13 @@ while($fila.Count -gt 0 -or $processosAtivos.Count -gt 0) {
 
     foreach($item in $processosAtivos) {
         if($item.Processo.HasExited) {
+            $item.Processo.WaitForExit()
             $item.Processo.Refresh()
+            $codigoDeSaida = $item.Processo.ExitCode
             $quantidadeConcluida++
 
-            if($item.Processo.ExitCode -ne 0) {
-                Write-Host "Falha: arquivo=$($item.Tarefa.Arquivo) h=0.$($item.Tarefa.H) codigo=$($item.Processo.ExitCode)"
+            if($codigoDeSaida -ne 0) {
+                Write-Host "Falha: arquivo=$($item.Tarefa.Arquivo) h=0.$($item.Tarefa.H) codigo=$codigoDeSaida"
                 $houveErro = $true
             }
             else {
