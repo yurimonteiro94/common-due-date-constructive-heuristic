@@ -247,25 +247,27 @@ static Boolean controllerBuscaLocalAvaliarSolucaoRapida(const Solucao *solucao,c
     return VERDADEIRO;
 }
 
-static Boolean controllerBuscaLocalDestinoPertenceAoRaio(QuantidadeDeTarefas posicaoOrigem,QuantidadeDeTarefas posicaoDestino,QuantidadeDeTarefas raioDeReinsercao) {
-    QuantidadeDeTarefas distancia;
-
-    if(posicaoOrigem == posicaoDestino) {
-        return FALSO;
+static QuantidadeDeTarefas controllerBuscaLocalCalcularPrimeiraPosicaoDestino(QuantidadeDeTarefas posicaoOrigem,QuantidadeDeTarefas raioDeReinsercao) {
+    if(posicaoOrigem > raioDeReinsercao) {
+        return (QuantidadeDeTarefas) (posicaoOrigem - raioDeReinsercao);
     }
 
-    if(posicaoDestino > posicaoOrigem) {
-        distancia = posicaoDestino - posicaoOrigem;
-    }
-    else {
-        distancia = posicaoOrigem - posicaoDestino;
+    return 0;
+}
+
+static QuantidadeDeTarefas controllerBuscaLocalCalcularUltimaPosicaoDestino(QuantidadeDeTarefas quantidadeDeTarefas,QuantidadeDeTarefas posicaoOrigem,QuantidadeDeTarefas raioDeReinsercao) {
+    QuantidadeDeTarefas ultimaPosicao;
+    QuantidadeDeTarefas ultimaPosicaoDoRaio;
+
+    ultimaPosicao = (QuantidadeDeTarefas) (quantidadeDeTarefas - 1);
+
+    if(raioDeReinsercao > ultimaPosicao - posicaoOrigem) {
+        return ultimaPosicao;
     }
 
-    if(distancia <= raioDeReinsercao) {
-        return VERDADEIRO;
-    }
+    ultimaPosicaoDoRaio = (QuantidadeDeTarefas) (posicaoOrigem + raioDeReinsercao);
 
-    return FALSO;
+    return ultimaPosicaoDoRaio;
 }
 
 ResultadoBuscaLocal criarResultadoBuscaLocalVazio(void) {
@@ -286,6 +288,8 @@ static Boolean controllerBuscaLocalExecutarReinsercao(const Instancia *instancia
     Custo custoCandidato;
     QuantidadeDeTarefas posicaoOrigem;
     QuantidadeDeTarefas posicaoDestino;
+    QuantidadeDeTarefas primeiraPosicaoDestino;
+    QuantidadeDeTarefas ultimaPosicaoDestino;
     QuantidadeDeTarefas raioEfetivo;
     Boolean houveMelhoria;
     const Tarefa **tarefasPorIdentificador;
@@ -364,8 +368,11 @@ static Boolean controllerBuscaLocalExecutarReinsercao(const Instancia *instancia
         (*resultadoBuscaLocal).quantidadeDeIteracoes++;
 
         for(posicaoOrigem = 0;posicaoOrigem < solucaoCorrente.quantidadeDeTarefas && houveMelhoria == FALSO;posicaoOrigem++) {
-            for(posicaoDestino = 0;posicaoDestino < solucaoCorrente.quantidadeDeTarefas && houveMelhoria == FALSO;posicaoDestino++) {
-                if(controllerBuscaLocalDestinoPertenceAoRaio(posicaoOrigem,posicaoDestino,raioEfetivo) == VERDADEIRO) {
+            primeiraPosicaoDestino = controllerBuscaLocalCalcularPrimeiraPosicaoDestino(posicaoOrigem,raioEfetivo);
+            ultimaPosicaoDestino = controllerBuscaLocalCalcularUltimaPosicaoDestino(solucaoCorrente.quantidadeDeTarefas,posicaoOrigem,raioEfetivo);
+
+            for(posicaoDestino = primeiraPosicaoDestino;posicaoDestino <= ultimaPosicaoDestino && houveMelhoria == FALSO;posicaoDestino++) {
+                if(posicaoDestino != posicaoOrigem) {
                     if(controllerBuscaLocalReinserirTarefa(&solucaoCorrente,posicaoOrigem,posicaoDestino) == FALSO) {
                         free(temposPrefixados);
                         free(tarefasPorIdentificador);
