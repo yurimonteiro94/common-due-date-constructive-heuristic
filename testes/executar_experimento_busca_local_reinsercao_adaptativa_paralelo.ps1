@@ -85,13 +85,13 @@ function Iniciar-Tarefa {
     )
 
     $caminhoLog = Join-Path $diretorioProjeto (
-        "resultados\validacao_busca_local_inversao_" +
+        "resultados\validacao_busca_local_reinsercao_adaptativa_" +
         $Tarefa.Sufixo +
         ".log"
     )
 
     $caminhoErro = Join-Path $diretorioProjeto (
-        "resultados\validacao_busca_local_inversao_" +
+        "resultados\validacao_busca_local_reinsercao_adaptativa_" +
         $Tarefa.Sufixo +
         ".log.erro"
     )
@@ -112,7 +112,7 @@ function Iniciar-Tarefa {
 
         Set-Location $diretorioProjetoDoTrabalho
 
-        & ".\testes\experimento_busca_local_inversao.exe" `
+        & ".\testes\experimento_busca_local_reinsercao_adaptativa.exe" `
             $arquivo `
             $fatorH `
             $instancia `
@@ -280,12 +280,25 @@ Write-Host ("Duracao: " + $duracaoTotal.ToString("hh\:mm\:ss"))
 
 if($houveFalha) {
     Write-Host ""
-    Write-Host "Uma ou mais execucoes da busca por inversao falharam."
+    Write-Host "Uma ou mais execucoes da busca local por reinsercao adaptativa falharam."
+
+    exit 1
+}
+
+$quantidadeDeResultados = @(
+    Get-ChildItem -Path (Join-Path $diretorioProjeto "resultados") `
+        -Filter "validacao_busca_local_reinsercao_adaptativa_*.csv" `
+        -File
+).Count
+
+if($quantidadeDeResultados -ne 280) {
+    Write-Host ""
+    Write-Host ("Quantidade inesperada de CSVs: " + $quantidadeDeResultados + ". Esperado: 280.")
 
     exit 1
 }
 
 Write-Host ""
-Write-Host "Todas as execucoes da busca por inversao terminaram com sucesso."
+Write-Host "Todas as execucoes da busca local por reinsercao adaptativa terminaram com sucesso."
 
 exit 0
